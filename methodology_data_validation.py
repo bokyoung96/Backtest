@@ -29,16 +29,19 @@ class MethodologyDataValidation(Methodology):
                                   loader_cls=DataLoader)
         self.data = {name: df[self.start_date:self.end_date]
                      for name, df in raw_data.items()}
-        self.const = DataLoader(
+
+        const = DataLoader(
             mkt=self.mkt).data_constituents[self.start_date: self.end_date]
+        self.const = Tools.get_data_align(const=const,
+                                          prc=self.data['price_adj'])
 
     @property
     def weights(self) -> pd.DataFrame:
         df1 = Tools.get_data_freq(self.data['mktcap_float'],
                                   freq=self.freq)
 
-        df2 = self.const.copy().replace(0, np.nan)
-        df2.index = df1.index
+        df2 = Tools.get_data_freq(self.const.replace(0, np.nan),
+                                  freq=self.freq)
 
         w = df1 * df2
         w = w.div(w.sum(axis=1), axis=0)

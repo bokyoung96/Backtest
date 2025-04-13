@@ -78,7 +78,7 @@ class Tools:
 
     def get_nan(df: pd.DataFrame,
                 val: list) -> pd.DataFrame:
-        return df.replace(val, np.nan)
+        return df.replace(val, np.nan).infer_objects(copy=False)
 
     @staticmethod
     def get_rank(df: pd.DataFrame,
@@ -111,6 +111,7 @@ class Tools:
     def get_drawdown(cumret: pd.DataFrame) -> pd.DataFrame:
         peak = cumret.cummax()
         drawdown = (cumret - peak) / peak
-        drawdown.replace([np.inf, -np.inf], np.nan, inplace=True)
+        drawdown = drawdown.replace(
+            [np.inf, -np.inf], np.nan).infer_objects(copy=False)
         drawdown.fillna(0, inplace=True)
         return drawdown
