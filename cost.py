@@ -36,7 +36,7 @@ class TransactionCost:
 class KoreaTransactionCost(TransactionCost):
     def __init__(self):
         super().__init__(buy_commission=0.0002, sell_commission=0.0002,
-                         slippage=0.0005, sell_tax=0.0022, cash_rate=0.0000)
+                         slippage=0.0005, sell_tax=0.0015, cash_rate=0.0000)
 
 
 class NoTransactionCost(TransactionCost):

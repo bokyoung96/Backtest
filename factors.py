@@ -67,35 +67,3 @@ class Factors:
             df = pd.concat(res)
             df.index.names = ['Factors', 'Date']
             return df
-
-
-if __name__ == "__main__":
-    cost = KoreaTransactionCost()
-
-    config = {
-        'init_invest': 1e8,
-        'mkt': 'KOSPI200',
-        'start_date': '20130101',
-        'end_date': '20230701',
-        'multiplier': 'Y',
-        'buy_commission': cost.buy_commission,
-        'sell_commission': cost.sell_commission,
-        'slippage': cost.slippage,
-        'sell_tax': cost.sell_tax,
-        'cash_rate': cost.cash_rate,
-        'freq': 'monthly',
-        'quantile': 5,
-        'quantile_position': [1],
-        'weight_type': 'mktcap_float'
-    }
-
-    methodology_types = [
-        MethodologyType.GPAlfq0,
-        MethodologyType.EBITDAEVttmlfq0,
-        MethodologyType.FCFEVttmlfq0,
-        MethodologyType.Momentum3612_1,
-        MethodologyType.Payoutttmlfq0
-    ]
-
-    mgr = AnalysisManager(config, methodology_types)
-    factors = Factors(analysis_manager=mgr)

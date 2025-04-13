@@ -5,7 +5,6 @@ CONST = "data_const_%s"
 
 
 class KorConstHelper:
-    # NOTE: Get constituent data from DataGuide for indexes in Korea.
     def __init__(self,
                  mkt: str = 'KOSPI200'):
         try:
