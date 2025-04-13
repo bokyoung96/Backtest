@@ -1,0 +1,68 @@
+# Backtest.py 로직 요약
+
+## 개요
+`backtest.py` 파일은 `PortfolioConstructor` 클래스를 정의하여 금융 포트폴리오의 과거 성과를 시뮬레이션(백테스팅)하는 기능을 수행합니다. 사용자가 정의한 투자 전략(가중치)과 시장 데이터, 거래 비용 등을 바탕으로 포트폴리오의 가치 변화, 수익률, 거래 내역 등을 계산합니다.
+
+## `PortfolioConstructor` 클래스
+
+### 초기화 (`__init__`)
+- 백테스팅에 필요한 기본 파라미터들을 설정합니다.
+    - `mkt`: 시장 구분 (예: 'kospi', 'kosdaq')
+    - `weights`: 포트폴리오 구성 가중치 데이터 (Pandas DataFrame 형태, 인덱스: 날짜, 컬럼: 종목 코드)
+    - `init_invest`: 초기 투자 원금
+    - `buy_commission`, `sell_commission`: 매수/매도 수수료율
+    - `slippage`: 슬리피지 비율 (체결 오차)
+    - `sell_tax`: 매도 세금 비율
+    - `cash_rate`: 현금 보유 시 적용될 연 이자율
+- `DataLoader`를 사용하여 필요한 시장 데이터를 로드합니다.
+    - `price`: 종목별 수정 주가
+    - `bm`: 벤치마크 지수
+    - `trans_ban`: 거래 정지 정보
+- 백테스팅 결과를 저장할 내부 변수들을 초기화합니다 (`_res_quantity`, `_transaction_summaries`, `_cash_balances`).
+
+### 주요 속성 (Properties)
+- `bday_dates`: 거래일 목록
+- `formation_dates`: 포트폴리오 구성 기준일 목록 (weights 데이터의 인덱스)
+- `rebalancing_dates`: 실제 리밸런싱이 수행되는 날짜 목록 (formation_date 이후 가장 가까운 거래일)
+- `init_invest_date`: 첫 리밸런싱 날짜
+- `last_invest_date`: 마지막 리밸런싱 날짜
+- `transaction_costs_summary`: 리밸런싱 시점별 거래 비용 요약 (DataFrame)
+- `cash_balance_summary`: 리밸런싱 시점별 현금 잔고 요약 (DataFrame)
+- `pf_ret`: 포트폴리오의 일별 수익률 (DataFrame)
+- `bm_ret`: 벤치마크의 일별 수익률 (DataFrame)
+- `pf_quantity`: 리밸런싱 시점별 보유 종목 수량 (DataFrame)
+
+### 주요 메서드
+
+#### `get_quantity(formation_date, rebalancing_date, total_assets)`
+- 특정 리밸런싱 시점(`rebalancing_date`)에 매수/보유할 종목별 수량을 계산합니다.
+- `formation_date`의 가중치 정보를 사용합니다.
+- `rebalancing_date`의 가격과 거래 정지 여부를 확인하여 투자 가능한 종목을 필터링합니다.
+- 필터링된 종목들의 가중치 합이 1이 되도록 정규화합니다.
+- 가용 투자 자산(`total_assets`)을 가중치에 따라 배분하고, 가격으로 나누어 목표 보유 수량을 계산합니다.
+
+#### `pf_cashflow()`
+- 백테스팅의 핵심 로직을 수행하여 포트폴리오의 일별 가치 변화를 계산합니다. (리팩토링 후에는 여러 private 메서드로 분리됨)
+- 리밸런싱 주기별로 다음 과정을 반복합니다.
+    1. **현금 이자 계산:** 보유 현금에 대해 기간별 이자를 계산하여 현금 잔고에 반영합니다. (`_calculate_period_interest`)
+    2. **리밸런싱 실행:** 총 자산 평가, 목표 수량 계산, 실제 거래 비용 계산, 현금 잔고 업데이트 등을 수행합니다. (`_execute_rebalancing`)
+    3. **일별 포트폴리오 가치 기록:** 현재 리밸런싱 기간 동안 보유 종목들의 일별 가격 변동을 반영하여 포트폴리오 평가 가치를 계산하고 기록합니다. (`_record_daily_values`)
+- 모든 리밸런싱 기간에 대한 계산이 완료되면, 일별 포트폴리오 가치(`Portfolio`), 현금 잔고(`Cash`), 총 자산(`Total`)을 포함하는 DataFrame을 반환합니다.
+
+#### `_calculate_transaction_costs(current_quantity, previous_quantity, date, total_assets)`
+- 현재 리밸런싱에서 발생하는 총 거래 비용을 계산합니다.
+- 목표 보유 수량(`current_quantity`)과 이전 보유 수량(`previous_quantity`)을 비교하여 순매수/순매도 수량을 파악합니다.
+- 해당 리밸런싱 날짜(`date`)의 가격을 기준으로 매수 가치와 매도 가치를 계산합니다.
+- 설정된 수수료율, 슬리피지, 세금 비율을 적용하여 매수 비용과 매도 비용을 각각 계산합니다.
+- 총 거래 비용과 상세 거래 내역(매수/매도 금액, 수량, 비용 등)을 반환합니다.
+
+## 백테스팅 프로세스 흐름
+1. `PortfolioConstructor` 객체 생성 시 초기 파라미터 설정 및 데이터 로딩.
+2. `pf_cashflow()` 또는 `pf_ret` 속성 호출 시 백테스팅 시작.
+3. 첫 리밸런싱 날짜부터 마지막 리밸런싱 날짜까지 루프 실행.
+4. 각 리밸런싱 시점마다:
+    - 현금 이자 계산 및 반영.
+    - 리밸런싱 실행 (자산 평가, 목표 수량 결정, 거래 비용 계산, 현금 잔고 업데이트).
+    - 다음 리밸런싱까지의 일별 포트폴리오 가치 계산 및 기록.
+5. 루프 종료 후, 전체 기간의 일별 포트폴리오 가치, 현금 잔고, 총 자산을 DataFrame으로 취합하여 반환.
+6. 계산된 결과를 바탕으로 `pf_ret`, `bm_ret`, `transaction_costs_summary` 등 다른 속성들을 통해 추가 정보 제공. 

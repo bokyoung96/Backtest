@@ -173,6 +173,7 @@ if __name__ == "__main__":
     }
 
     methodology_types = [
+        MethodologyType.DataValidation,
         MethodologyType.GPAlfq0,
         MethodologyType.EBITDAEVttmlfq0,
         MethodologyType.FCFEVttmlfq0,
@@ -182,5 +183,5 @@ if __name__ == "__main__":
 
     mgr = AnalysisManager(config, methodology_types)
 
-    selected_methodology = MethodologyType.Momentum3612_1
+    selected_methodology = MethodologyType.DataValidation
     analysis = mgr.run(selected_methodology)
