@@ -45,7 +45,7 @@ class KorConstHelper:
         return res
 
     def save_data(self):
-        return self.get_DG_res_data().to_pickle(f'./DATA/{self.file_name}.pkl')
+        return self.get_DG_res_data().to_parquet(f'./DATA/{self.file_name}.parquet')
 
 
 if __name__ == "__main__":

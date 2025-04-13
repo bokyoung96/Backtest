@@ -119,8 +119,8 @@ class DataLoader:
 
     @property
     def data_constituents(self) -> pd.DataFrame:
-        data_path = f'./DATA/data_const_{self.mkt_value}.pkl'
-        return pd.read_pickle(data_path)
+        data_path = f'./DATA/data_const_{self.mkt_value}.parquet'
+        return pd.read_parquet(data_path)
 
     def __repr__(self) -> str:
         return f"mkt_value: {self.mkt_value}"
@@ -137,7 +137,7 @@ class DataLoader:
         if not res:
             raise ValueError(f"No matching data name for <{data_name}>.")
 
-        data_path = f'./DATA/{DataPool[res].value}.pkl'
+        data_path = f'./DATA/{DataPool[res].value}.parquet'
         if data_name == 'bm':
             data = self.data_loader_bm(data_path=data_path,
                                        tr_yn=tr_yn)
@@ -148,7 +148,7 @@ class DataLoader:
     def data_loader_bm(self,
                        data_path: str,
                        tr_yn: bool) -> pd.DataFrame:
-        df = pd.read_pickle(data_path)
+        df = pd.read_parquet(data_path)
         key = f"{self.mkt_value}_TR" if tr_yn else self.mkt_value
         if key in df.columns:
             return df[[key]]
@@ -157,7 +157,7 @@ class DataLoader:
 
     def data_loader_others(self,
                            data_path: str) -> pd.DataFrame:
-        df = pd.read_pickle(data_path)
+        df = pd.read_parquet(data_path)
         if self.mkt_value == 'ALL':
             return df
         else:
@@ -167,13 +167,13 @@ class DataLoader:
 
     @staticmethod
     def get_data_size(directory: str = './DATA') -> pd.DataFrame:
-        files = [f for f in os.listdir(directory) if f.endswith('.pkl')]
+        files = [f for f in os.listdir(directory) if f.endswith('.parquet')]
 
         file_info = []
         for file in files:
             file_path = os.path.join(directory, file)
             try:
-                df = pd.read_pickle(file_path)
+                df = pd.read_parquet(file_path)
                 file_info.append(
                     {'File_name': file, 'Idx': df.shape[0], 'Col': df.shape[1]})
             except Exception as e:
