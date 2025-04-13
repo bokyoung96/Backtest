@@ -73,7 +73,6 @@ class PortfolioConstructor:
         self._transaction_summaries: List[Dict] = []
         self._cash_balances: List[Dict] = []
         self._rebalancing_dates_cache: Optional[List[dt.datetime]] = None
-        # Store actual final holdings after scaling
         self._final_holdings_data: List[Dict] = []
 
     def __repr__(self) -> str:
@@ -191,11 +190,8 @@ class PortfolioConstructor:
 
         init_invest = weights * total_assets
         q = init_invest / init_price
-
-        # FutureWarning 해결: replace 후 명시적으로 infer_objects() 호출
         q = q.replace([np.inf, -np.inf],
                       np.nan).dropna().infer_objects(copy=False)
-
         return q
 
     def pf_cashflow(self) -> pd.DataFrame:

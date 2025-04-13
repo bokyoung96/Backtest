@@ -3,7 +3,6 @@ from threading import Lock
 from cost import *
 from performance import *
 from backtest import *
-from factors import *
 
 
 class PortfolioAnalysis:
