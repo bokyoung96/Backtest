@@ -1,4 +1,5 @@
-from loader import *
+import pandas as pd
+from bt.loader import DirMkt
 
 
 CONST = "data_const_%s"
@@ -47,5 +48,36 @@ class KorConstHelper:
         return self.get_DG_res_data().to_parquet(f'./DATA/{self.file_name}.parquet')
 
 
+def update_all():
+    mkt_keys = list(DirMkt.__members__)
+    
+    if 'ALL' in mkt_keys:
+        mkt_keys.remove('ALL')
+        print(f"Excluded 'ALL' from processing. Processing {len(mkt_keys)} markets...")
+    else:
+        print(f"Starting to update constituent data for all {len(mkt_keys)} markets...")
+    
+    res = {}
+    
+    for mkt in mkt_keys:
+        try:
+            print(f"Processing {mkt}...")
+            helper = KorConstHelper(mkt=mkt)
+            helper.save_data()
+            res[mkt] = True
+            print(f"Successfully updated {mkt}")
+        except Exception as e:
+            print(f"Error updating {mkt}: {e}")
+            res[mkt] = False
+    
+    success_count = sum(res.values())
+    print(f"Completed updating {success_count} out of {len(mkt_keys)} markets")
+    return res
+
+
 if __name__ == "__main__":
-    kor_const = KorConstHelper(mkt='KOSPI200')
+    # Individual market update
+    # kor_const = KorConstHelper(mkt='KOSPI200')
+    
+    # Update all constituents
+    update_all()

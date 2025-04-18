@@ -1,9 +1,9 @@
+import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from abc import ABC, abstractmethod
 
-from tools import *
-from methodology_type import *
-from backtest import *
+from bt.tools import Tools
 
 
 class PerformanceMeasure(ABC):

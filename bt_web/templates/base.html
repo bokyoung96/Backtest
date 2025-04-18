@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Portfolio Backtesting Platform{% endblock %}</title>
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
+    <!-- Font Awesome for icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      :root {
+        --primary-color: #1a759f;
+        --primary-dark: #184e77;
+        --primary-light: #76c6e3;
+        --secondary-color: #34a0a4;
+        --text-color: #343a40;
+        --light-bg: #f8f9fa;
+        --border-color: #e9ecef;
+      }
+
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        color: var(--text-color);
+        background-color: var(--light-bg);
+        padding-top: 4rem;
+        line-height: 1.6;
+        font-size: 0.95rem;
+      }
+
+      .navbar {
+        background: linear-gradient(
+          90deg,
+          var(--primary-dark) 0%,
+          var(--primary-color) 100%
+        );
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .navbar-brand {
+        font-weight: 600;
+        font-size: 1.3rem;
+        padding: 0.5rem 0;
+      }
+
+      .navbar-dark .navbar-nav .nav-link {
+        color: rgba(255, 255, 255, 0.85);
+        font-weight: 500;
+        padding: 0.7rem 1rem;
+        transition: all 0.2s ease;
+      }
+
+      .navbar-dark .navbar-nav .nav-link:hover,
+      .navbar-dark .navbar-nav .nav-link.active {
+        color: white;
+        background-color: rgba(255, 255, 255, 0.1);
+        border-radius: 5px;
+      }
+
+      .container {
+        padding: 0 15px;
+      }
+
+      footer {
+        margin-top: 4rem;
+        padding: 2rem 0;
+        background-color: var(--primary-dark);
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .footer-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .footer-links {
+        display: flex;
+        gap: 1.5rem;
+      }
+
+      .footer-links a {
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+        transition: color 0.2s ease;
+      }
+
+      .footer-links a:hover {
+        color: white;
+      }
+
+      /* Content typography improvements */
+      h1 {
+        font-size: 2rem;
+        margin-bottom: 1.5rem;
+      }
+
+      h2 {
+        font-size: 1.6rem;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      h3 {
+        font-size: 1.3rem;
+        margin-top: 1.5rem;
+      }
+
+      p,
+      li {
+        font-size: 0.9rem;
+        line-height: 1.7;
+        margin-bottom: 1rem;
+      }
+
+      .card {
+        border-radius: 8px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+        border: none;
+      }
+
+      .card-body {
+        padding: 2rem;
+      }
+
+      ul,
+      ol {
+        margin-bottom: 1.5rem;
+        padding-left: 1.5rem;
+      }
+
+      ul li,
+      ol li {
+        margin-bottom: 0.5rem;
+      }
+
+      .lead {
+        font-size: 1.05rem;
+        font-weight: 400;
+      }
+
+      @media (max-width: 768px) {
+        .footer-content {
+          flex-direction: column;
+          gap: 1rem;
+          text-align: center;
+        }
+
+        .card-body {
+          padding: 1.5rem;
+        }
+      }
+    </style>
+    {% block head_extra %}{% endblock %}
+  </head>
+  <body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-md navbar-dark fixed-top">
+      <div class="container">
+        <a class="navbar-brand" href="/">
+          <i class="fas fa-chart-line me-2"></i>Portfolio Backtester
+        </a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarCollapse"
+          aria-controls="navbarCollapse"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarCollapse">
+          <ul class="navbar-nav ms-auto mb-2 mb-md-0">
+            <li class="nav-item">
+              <a class="nav-link active" aria-current="page" href="/">
+                <i class="fas fa-home me-1"></i> Home
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('about') }}">
+                <i class="fas fa-info-circle me-1"></i> About
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('help') }}">
+                <i class="fas fa-question-circle me-1"></i> Help
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main>{% block content %}{% endblock %}</main>
+
+    <!-- Footer -->
+    <footer>
+      <div class="container">
+        <div class="footer-content">
+          <div class="copyright">
+            &copy; 2025 {{ app_name }} v{{ app_version }}
+          </div>
+          <div class="footer-links">
+            <a href="{{ url_for('terms') }}">Terms</a>
+            <a href="{{ url_for('privacy') }}">Privacy</a>
+            <a href="{{ url_for('contact') }}">Contact</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+      crossorigin="anonymous"
+    ></script>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>
