@@ -1,0 +1,1221 @@
+{% extends 'base.html' %} {% block title %}Performance: {{ data.name }}{%
+endblock %} {% block head_extra %} {# Include Chart.js library #}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<script src="https://cdn.jsdelivr.net/npm/date-fns"></script>
+<style>
+  body {
+    background-color: #f8f9fa;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin-top: 2rem;
+  }
+
+  .header-section {
+    background: linear-gradient(135deg, #184e77 0%, #1e6091 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+  }
+
+  .card-header {
+    background: #1a759f;
+    color: white;
+    font-weight: 600;
+    border-bottom: none;
+    padding: 1rem 1.5rem;
+  }
+
+  .metrics-card {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    padding: 1.5rem;
+  }
+
+  .metric-item {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    text-align: center;
+  }
+
+  .metric-value {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #1a759f;
+    margin: 0.5rem 0;
+  }
+
+  .metric-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .chart-container {
+    padding: 1.5rem;
+    height: 400px;
+  }
+
+  .chart-row {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0 -0.75rem;
+  }
+
+  .chart-col {
+    flex: 1 0 50%;
+    padding: 0 0.75rem;
+    min-width: 300px;
+    margin-bottom: 1.5rem;
+  }
+
+  .btn-back {
+    background-color: #1a759f;
+    border: none;
+    padding: 0.5rem 1.5rem;
+    border-radius: 5px;
+    color: white;
+    font-weight: 500;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+  }
+
+  .btn-back:hover {
+    background-color: #1e6091;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  .table-responsive {
+    padding: 1.5rem;
+  }
+
+  .nav-tabs {
+    border-bottom: 1px solid #dee2e6;
+    padding: 0 1.5rem;
+  }
+
+  .nav-tabs .nav-link {
+    color: #495057;
+    border: none;
+    font-weight: 500;
+    padding: 0.75rem 1.25rem;
+    transition: all 0.2s ease;
+  }
+
+  .nav-tabs .nav-link:hover {
+    color: #1a759f;
+    border-color: transparent;
+  }
+
+  .nav-tabs .nav-link.active {
+    color: #1a759f;
+    border-bottom: 3px solid #1a759f;
+    font-weight: 600;
+    background-color: transparent;
+  }
+
+  .tab-content {
+    padding: 1.5rem;
+  }
+
+  .backtest-parameters {
+    background: rgba(240, 242, 245, 0.5);
+    padding: 1.5rem;
+    border-radius: 10px;
+    border-left: 4px solid #1a759f;
+    margin-bottom: 1.5rem;
+  }
+
+  .param-group {
+    margin-bottom: 1rem;
+  }
+
+  .param-label {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: #343a40;
+  }
+
+  .param-value {
+    color: #495057;
+  }
+
+  .card-table {
+    width: 100%;
+    font-size: 0.85rem;
+  }
+
+  .card-table th {
+    background-color: rgba(240, 242, 245, 0.5);
+    color: #1a759f;
+    font-weight: 600;
+    border-top: none;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  .card-table td {
+    white-space: nowrap;
+  }
+
+  .holdings-date-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.5rem;
+  }
+
+  .holdings-date-tab {
+    white-space: nowrap;
+    padding: 0.5rem 1rem;
+    margin-right: 0.5rem;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    color: #495057;
+    transition: all 0.2s ease;
+  }
+
+  .holdings-date-tab:hover {
+    background-color: rgba(26, 117, 159, 0.1);
+    color: #1a759f;
+  }
+
+  .holdings-date-tab.active {
+    background-color: #1a759f;
+    color: white;
+    font-weight: 600;
+  }
+
+  .table-scroll {
+    overflow-x: auto;
+    width: 100%;
+  }
+
+  .number-cell {
+    text-align: right;
+    font-family: "Consolas", monospace;
+  }
+
+  .chart-tabs {
+    display: flex;
+    margin-bottom: 1rem;
+    gap: 0.5rem;
+  }
+
+  .chart-tab {
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    background-color: #e9ecef;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+  }
+
+  .chart-tab.active {
+    background-color: #1a759f;
+    color: white;
+  }
+
+  .code-style {
+    font-family: "Consolas", monospace;
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="container">
+  <a href="{{ url_for('index') }}" class="btn btn-back">
+    <i class="fas fa-arrow-left"></i> Back to List
+  </a>
+
+  <div class="header-section">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h1 class="mb-0">{{ data.name }}</h1>
+        <p class="mb-0 mt-2">Performance Analysis</p>
+      </div>
+      <button
+        onclick="downloadAllData()"
+        class="btn btn-light"
+        id="downloadBtn"
+      >
+        <i class="fas fa-file-excel me-2"></i>Download All Data
+      </button>
+    </div>
+  </div>
+
+  <div class="backtest-parameters">
+    <h5 class="mb-3">Backtest Parameters</h5>
+    <div class="row">
+      <div class="col-md-3">
+        <div class="param-group">
+          <div class="param-label">Methodology</div>
+          <div class="param-value">{{ data.name }}</div>
+        </div>
+        <div class="param-group">
+          <div class="param-label">Market</div>
+          <div class="param-value">{{ data.params.mkt }}</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="param-group">
+          <div class="param-label">Period</div>
+          <div class="param-value">
+            {{ data.params.start_date }} - {{ data.params.end_date }}
+          </div>
+        </div>
+        <div class="param-group">
+          <div class="param-label">Initial Investment</div>
+          <div class="param-value">
+            {{ '{:,}'.format(data.params.init_invest|int) }} KRW
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="param-group">
+          <div class="param-label">Buy / Sell Commission</div>
+          <div class="param-value">
+            {{ (data.params.buy_commission * 100)|round(4) }}% / {{
+            (data.params.sell_commission * 100)|round(4) }}%
+          </div>
+        </div>
+        <div class="param-group">
+          <div class="param-label">Slippage / Sell Tax</div>
+          <div class="param-value">
+            {{ (data.params.slippage * 100)|round(4) }}% / {{
+            (data.params.sell_tax * 100 )|round(4) }}%
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="param-group">
+          <div class="param-label">Cash Rate</div>
+          <div class="param-value">
+            {{ (data.params.cash_rate * 100)|round(4) }}%
+          </div>
+        </div>
+        <div class="param-group">
+          <div class="param-label">Rebalancing Timing</div>
+          <div class="param-value">{{ data.params.rebal_timing }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Key Performance Metrics</div>
+    <div class="metrics-card">
+      <div class="metric-item">
+        <div class="metric-label">Total Return</div>
+        <div class="metric-value">{{ data.get('total_return', 'N/A') }}</div>
+      </div>
+
+      <div class="metric-item">
+        <div class="metric-label">Annualized Return</div>
+        <div class="metric-value">
+          {{ data.get('annualized_return', 'N/A') }}
+        </div>
+      </div>
+
+      <div class="metric-item">
+        <div class="metric-label">Sharpe Ratio</div>
+        <div class="metric-value">{{ data.get('sharpe_ratio', 'N/A') }}</div>
+      </div>
+
+      <div class="metric-item">
+        <div class="metric-label">Volatility</div>
+        <div class="metric-value">{{ data.get('volatility', 'N/A') }}</div>
+      </div>
+
+      <div class="metric-item">
+        <div class="metric-label">Max Drawdown</div>
+        <div class="metric-value">{{ data.get('max_drawdown', 'N/A') }}</div>
+      </div>
+
+      <div class="metric-item">
+        <div class="metric-label">Win Rate</div>
+        <div class="metric-value">{{ data.get('win_rate', 'N/A') }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Performance Charts</div>
+    <div class="p-3">
+      <div class="chart-tabs">
+        <div class="chart-tab active" data-chart="portfolio">
+          Portfolio Value
+        </div>
+        <div class="chart-tab" data-chart="mdd">Maximum Drawdown</div>
+        <div class="chart-tab" data-chart="cash">Cash Balance</div>
+        <div class="chart-tab" data-chart="transaction">Transaction Costs</div>
+      </div>
+
+      <div class="chart-container" id="portfolio-chart-container">
+        <canvas id="portfolioChart"></canvas>
+      </div>
+
+      <div
+        class="chart-container"
+        id="mdd-chart-container"
+        style="display: none"
+      >
+        <canvas id="mddChart"></canvas>
+      </div>
+
+      <div
+        class="chart-container"
+        id="cash-chart-container"
+        style="display: none"
+      >
+        <canvas id="cashChart"></canvas>
+      </div>
+
+      <div
+        class="chart-container"
+        id="transaction-chart-container"
+        style="display: none"
+      >
+        <canvas id="transactionChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Detailed Analysis</div>
+
+    <ul class="nav nav-tabs" id="detailTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button
+          class="nav-link active"
+          id="transactions-tab"
+          data-bs-toggle="tab"
+          data-bs-target="#transactions"
+          type="button"
+          role="tab"
+          aria-controls="transactions"
+          aria-selected="true"
+        >
+          <i class="fas fa-exchange-alt me-1"></i> Transactions
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button
+          class="nav-link"
+          id="cash-tab"
+          data-bs-toggle="tab"
+          data-bs-target="#cash"
+          type="button"
+          role="tab"
+          aria-controls="cash"
+          aria-selected="false"
+        >
+          <i class="fas fa-money-bill-wave me-1"></i> Cash Balance
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button
+          class="nav-link"
+          id="holdings-tab"
+          data-bs-toggle="tab"
+          data-bs-target="#holdings"
+          type="button"
+          role="tab"
+          aria-controls="holdings"
+          aria-selected="false"
+        >
+          <i class="fas fa-chart-pie me-1"></i> Holdings
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content" id="detailTabsContent">
+      <div
+        class="tab-pane fade show active"
+        id="transactions"
+        role="tabpanel"
+        aria-labelledby="transactions-tab"
+      >
+        {% if data.transactions %}
+        <div class="table-scroll">
+          <table class="table table-hover card-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Total Buy Value</th>
+                <th>Total Sell Value</th>
+                <th>Shares Bought</th>
+                <th>Shares Sold</th>
+                <th>Total Buy Cost</th>
+                <th>Total Sell Cost</th>
+                <th>Total Transaction Cost</th>
+                <th>Total NAV</th>
+                <th>Transaction Cost (bp)</th>
+                <th>Error</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for tx in data.transactions %}
+              <tr>
+                <td>{{ tx.date }}</td>
+                <td class="number-cell">
+                  {{ "{:,.0f}".format(tx.get('buy_value', 0)) }}
+                </td>
+                <td class="number-cell">
+                  {{ "{:,.0f}".format(tx.get('sell_value', 0)) }}
+                </td>
+                <td class="number-cell">
+                  {{ "{:,.2f}".format(tx.get('shares_bought', 0)) }}
+                </td>
+                <td class="number-cell">
+                  {{ "{:,.2f}".format(tx.get('shares_sold', 0)) }}
+                </td>
+                <td class="number-cell">
+                  {{ "{:,.0f}".format(tx.get('buy_cost', 0)) }}
+                </td>
+                <td class="number-cell">
+                  {{ "{:,.0f}".format(tx.get('sell_cost', 0)) }}
+                </td>
+                <td class="number-cell">
+                  {{ "{:,.0f}".format(tx.get('total_cost', 0)) }}
+                </td>
+                <td class="number-cell">
+                  {{ "{:,.0f}".format(tx.get('nav', 0)) }}
+                </td>
+                <td class="number-cell">
+                  {{ "{:,.2f}".format(tx.get('cost_bp', 0)) }}
+                </td>
+                <td>{{ tx.get('error', 'None') }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center">
+          <p class="text-muted">No transaction data available</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <div
+        class="tab-pane fade"
+        id="cash"
+        role="tabpanel"
+        aria-labelledby="cash-tab"
+      >
+        {% if data.cash_balance %}
+        <div class="table-scroll">
+          <table class="table table-hover card-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Cash Balance</th>
+                <th>State</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for cash in data.cash_balance %}
+              <tr>
+                <td>{{ cash.date }}</td>
+                <td class="number-cell">
+                  {{ "{:,.0f}".format(cash.get('cash_balance', 0)) }}
+                </td>
+                <td>{{ cash.get('state', '') }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center">
+          <p class="text-muted">No cash balance data available</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <div
+        class="tab-pane fade"
+        id="holdings"
+        role="tabpanel"
+        aria-labelledby="holdings-tab"
+      >
+        {% if data.holdings %}
+        <div class="holdings-date-tabs" id="holdingsDates">
+          {% for date in data.holdings.keys() %}
+          <div
+            class="holdings-date-tab {% if loop.first %}active{% endif %}"
+            data-date="{{ date }}"
+          >
+            {{ date }}
+          </div>
+          {% endfor %}
+        </div>
+
+        {% for date, holdings_list in data.holdings.items() %}
+        <div
+          class="holdings-content"
+          id="holdings-{{ date }}"
+          style="{% if not loop.first %}display: none;{% endif %}"
+        >
+          <h6 class="mb-3">Holdings on {{ date }}</h6>
+          <div class="row">
+            <div class="col-md-8">
+              <div class="table-scroll">
+                <table class="table table-hover card-table">
+                  <thead>
+                    <tr>
+                      <th>Symbol</th>
+                      <th>Quantity</th>
+                      <th>Price</th>
+                      <th>Market Value</th>
+                      <th>Weight</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for holding in holdings_list %}
+                    <tr>
+                      <td class="code-style">
+                        {{ holding.get('ticker', holding.get('index', '')) }}
+                      </td>
+                      <td class="number-cell">
+                        {{ "{:,.2f}".format(holding.get('quantity',
+                        holding.get('shares', 0))) }}
+                      </td>
+                      <td class="number-cell">
+                        {{ "{:,.0f}".format(holding.get('price', 0)) }}
+                      </td>
+                      <td class="number-cell">
+                        {{ "{:,.0f}".format(holding.get('market_value',
+                        holding.get('value', 0))) }}
+                      </td>
+                      <td class="number-cell">
+                        {{ "{:.2%}".format(holding.get('weight', 0)) }}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <canvas id="holdingsPieChart-{{ date }}"></canvas>
+            </div>
+          </div>
+        </div>
+        {% endfor %} {% else %}
+        <div class="p-4 text-center">
+          <p class="text-muted">No holdings data available</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Performance Chart - Portfolio Value
+    const portfolioCtx = document.getElementById('portfolioChart').getContext('2d');
+
+    // Get raw chart data from the template
+    const rawChartData = {{ data.get('chart_data', []) | tojson }};
+
+    // Prepare data for cash balance chart
+    const cashBalanceData = [];
+    {% if data.cash_balance %}
+      {% for cash in data.cash_balance %}
+        if ('date' in {{ cash | tojson }} && 'cash_balance' in {{ cash | tojson }}) {
+          cashBalanceData.push({
+            date: "{{ cash.date }}",
+            value: {{ cash.get('cash_balance', 0) }}
+          });
+        }
+      {% endfor %}
+    {% endif %}
+
+    // Prepare data for transaction costs chart
+    const transactionCostData = [];
+    {% if data.transactions %}
+      {% for tx in data.transactions %}
+        if ('date' in {{ tx | tojson }} && 'total_cost' in {{ tx | tojson }}) {
+          transactionCostData.push({
+            date: "{{ tx.date }}",
+            value: {{ tx.get('total_cost', 0) }}
+          });
+        }
+      {% endfor %}
+    {% endif %}
+
+    // Create portfolio value chart
+    if (Array.isArray(rawChartData) && rawChartData.length > 0) {
+      console.log("Chart data loaded:", rawChartData);
+
+      const dates = rawChartData.map(item => item.date);
+      const portfolioValues = rawChartData.map(item => item.portfolio);
+      const benchmarkValues = rawChartData.map(item => item.benchmark);
+
+      // Create gradients
+      const portfolioGradient = portfolioCtx.createLinearGradient(0, 0, 0, 400);
+      portfolioGradient.addColorStop(0, 'rgba(26, 117, 159, 0.3)');
+      portfolioGradient.addColorStop(1, 'rgba(26, 117, 159, 0)');
+
+      const benchmarkGradient = portfolioCtx.createLinearGradient(0, 0, 0, 400);
+      benchmarkGradient.addColorStop(0, 'rgba(220, 53, 69, 0.2)');
+      benchmarkGradient.addColorStop(1, 'rgba(220, 53, 69, 0)');
+
+      new Chart(portfolioCtx, {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [
+            {
+              label: 'Portfolio',
+              data: portfolioValues,
+              borderColor: '#1a759f',
+              backgroundColor: portfolioGradient,
+              borderWidth: 2,
+              fill: true,
+              tension: 0.3,
+              pointRadius: 0,
+              pointHoverRadius: 6,
+              pointHoverBackgroundColor: '#1a759f',
+              pointHoverBorderColor: '#fff',
+              pointHoverBorderWidth: 2,
+              order: 1
+            },
+            {
+              label: 'Benchmark',
+              data: benchmarkValues,
+              borderColor: '#dc3545',
+              backgroundColor: benchmarkGradient,
+              borderWidth: 1.5,
+              fill: true,
+              tension: 0.3,
+              pointRadius: 0,
+              pointHoverRadius: 6,
+              pointHoverBackgroundColor: '#dc3545',
+              pointHoverBorderColor: '#fff',
+              pointHoverBorderWidth: 2,
+              order: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Cumulative Return',
+              padding: 20,
+              font: {
+                size: 16,
+                weight: 'bold'
+              }
+            },
+            legend: {
+              display: true,
+              position: 'top',
+              labels: {
+                usePointStyle: true,
+                padding: 15,
+                font: {
+                  size: 12
+                }
+              }
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              titleColor: '#000',
+              bodyColor: '#000',
+              borderColor: '#ddd',
+              borderWidth: 1,
+              padding: 10,
+              displayColors: true,
+              callbacks: {
+                label: function(context) {
+                  return `${context.dataset.label}: ${(context.parsed.y * 100).toFixed(2)}%`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: {
+                display: false
+              },
+              ticks: {
+                maxTicksLimit: 8,
+                font: {
+                  size: 11
+                }
+              }
+            },
+            y: {
+              grid: {
+                color: 'rgba(0, 0, 0, 0.05)'
+              },
+              ticks: {
+                font: {
+                  size: 11
+                },
+                callback: function(value) {
+                  return (value * 100).toFixed(1) + '%';
+                }
+              }
+            }
+          },
+          interaction: {
+            mode: 'nearest',
+            axis: 'x',
+            intersect: false
+          }
+        }
+      });
+    } else {
+      console.error("No chart data available or invalid format");
+      document.getElementById('portfolioChart').innerHTML = 'No portfolio value data available';
+    }
+
+    // Create cash balance chart
+    const cashCtx = document.getElementById('cashChart').getContext('2d');
+    if (cashBalanceData.length > 0) {
+      const cashDates = cashBalanceData.map(item => item.date);
+      const cashValues = cashBalanceData.map(item => item.value);
+
+      // Create gradient
+      const cashGradient = cashCtx.createLinearGradient(0, 0, 0, 400);
+      cashGradient.addColorStop(0, 'rgba(40, 167, 69, 0.3)');
+      cashGradient.addColorStop(1, 'rgba(40, 167, 69, 0)');
+
+      new Chart(cashCtx, {
+        type: 'line',
+        data: {
+          labels: cashDates,
+          datasets: [{
+            label: 'Cash Balance',
+            data: cashValues,
+            borderColor: '#28a745',
+            backgroundColor: cashGradient,
+            borderWidth: 2,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 0,
+            pointHoverRadius: 6,
+            pointHoverBackgroundColor: '#28a745',
+            pointHoverBorderColor: '#fff',
+            pointHoverBorderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Cash Balance Over Time',
+              padding: 20,
+              font: {
+                size: 16,
+                weight: 'bold'
+              }
+            },
+            legend: {
+              display: true,
+              position: 'top',
+              labels: {
+                usePointStyle: true,
+                padding: 15,
+                font: {
+                  size: 12
+                }
+              }
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              titleColor: '#000',
+              bodyColor: '#000',
+              borderColor: '#ddd',
+              borderWidth: 1,
+              padding: 10,
+              callbacks: {
+                label: function(context) {
+                  return `Cash Balance: ${context.parsed.y.toLocaleString()} KRW`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: {
+                display: false
+              },
+              ticks: {
+                maxTicksLimit: 8,
+                font: {
+                  size: 11
+                }
+              }
+            },
+            y: {
+              grid: {
+                color: 'rgba(0, 0, 0, 0.05)'
+              },
+              ticks: {
+                font: {
+                  size: 11
+                },
+                callback: function(value) {
+                  return value.toLocaleString();
+                }
+              }
+            }
+          },
+          interaction: {
+            mode: 'nearest',
+            axis: 'x',
+            intersect: false
+          }
+        }
+      });
+    } else {
+      document.getElementById('cashChart').innerHTML = 'No cash balance data available';
+    }
+
+    // Create transaction costs chart
+    const txCtx = document.getElementById('transactionChart').getContext('2d');
+    if (transactionCostData.length > 0) {
+      const txDates = transactionCostData.map(item => item.date);
+      const txValues = transactionCostData.map(item => item.value);
+
+      new Chart(txCtx, {
+        type: 'bar',
+        data: {
+          labels: txDates,
+          datasets: [{
+            label: 'Transaction Cost',
+            data: txValues,
+            backgroundColor: '#fd7e14',
+            borderRadius: 4,
+            maxBarThickness: 40
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Transaction Costs Over Time',
+              font: {
+                size: 16,
+                weight: 'bold'
+              }
+            },
+            legend: {
+              display: true,
+              position: 'top'
+            }
+          },
+          scales: {
+            x: {
+              ticks: {
+                maxTicksLimit: 8
+              }
+            },
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return value.toLocaleString();
+                }
+              }
+            }
+          }
+        }
+      });
+    } else {
+      document.getElementById('transactionChart').innerHTML = 'No transaction cost data available';
+    }
+
+    // Create MDD chart
+    const mddCtx = document.getElementById('mddChart').getContext('2d');
+    if (Array.isArray(rawChartData) && rawChartData.length > 0) {
+      const dates = rawChartData.map(item => item.date);
+      const portfolioMDD = rawChartData.map(item => item.portfolio_mdd);
+      const benchmarkMDD = rawChartData.map(item => item.benchmark_mdd);
+
+      new Chart(mddCtx, {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [{
+            label: 'Portfolio Drawdown',
+            data: portfolioMDD,
+            borderColor: '#1a759f',
+            backgroundColor: 'rgba(26, 117, 159, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 0,
+            pointHoverRadius: 6,
+            pointHoverBackgroundColor: '#1a759f',
+            pointHoverBorderColor: '#fff',
+            pointHoverBorderWidth: 2
+          },
+          {
+            label: 'Benchmark Drawdown',
+            data: benchmarkMDD,
+            borderColor: '#dc3545',
+            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 0,
+            pointHoverRadius: 6,
+            pointHoverBackgroundColor: '#dc3545',
+            pointHoverBorderColor: '#fff',
+            pointHoverBorderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Maximum Drawdown',
+              padding: 20,
+              font: {
+                size: 16,
+                weight: 'bold'
+              }
+            },
+            legend: {
+              display: true,
+              position: 'top',
+              labels: {
+                usePointStyle: true,
+                padding: 15,
+                font: {
+                  size: 12
+                }
+              }
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              titleColor: '#000',
+              bodyColor: '#000',
+              borderColor: '#ddd',
+              borderWidth: 1,
+              padding: 10,
+              callbacks: {
+                label: function(context) {
+                  return `${context.dataset.label}: ${(context.parsed.y * 100).toFixed(2)}%`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: {
+                display: false
+              },
+              ticks: {
+                maxTicksLimit: 8,
+                font: {
+                  size: 11
+                }
+              }
+            },
+            y: {
+              grid: {
+                color: 'rgba(0, 0, 0, 0.05)'
+              },
+              ticks: {
+                font: {
+                  size: 11
+                },
+                callback: function(value) {
+                  return (value * 100).toFixed(1) + '%';
+                }
+              }
+            }
+          },
+          interaction: {
+            mode: 'nearest',
+            axis: 'x',
+            intersect: false
+          }
+        }
+      });
+    }
+
+    // Create holdings pie charts
+    {% for date, holdings_list in data.holdings.items() %}
+    const holdingsPieCtx{{ loop.index }} = document.getElementById('holdingsPieChart-{{ date }}').getContext('2d');
+    const holdingsData{{ loop.index }} = {{ holdings_list | tojson }};
+
+    if (holdingsData{{ loop.index }}.length > 0) {
+      const labels = holdingsData{{ loop.index }}.map(item => item.ticker || item.index);
+      const weights = holdingsData{{ loop.index }}.map(item => item.weight);
+
+      // Generate blue gradient colors
+      const colors = weights.map((_, i) => {
+        // Base blue color: #1a759f (primary blue from your theme)
+        const baseColor = [26, 117, 159];  // RGB values of #1a759f
+        const lightenAmount = (i / (weights.length - 1)) * 60;  // Gradually lighten up to 60%
+
+        const r = Math.min(255, baseColor[0] + lightenAmount);
+        const g = Math.min(255, baseColor[1] + lightenAmount);
+        const b = Math.min(255, baseColor[2] + lightenAmount);
+
+        return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+      });
+
+      new Chart(holdingsPieCtx{{ loop.index }}, {
+        type: 'pie',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: weights,
+            backgroundColor: colors,
+            borderWidth: 1,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Portfolio Weights',
+              font: {
+                size: 14,
+                weight: 'bold'
+              }
+            },
+            legend: {
+              position: 'right',
+              labels: {
+                font: {
+                  size: 11
+                }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${context.label}: ${(context.parsed * 100).toFixed(2)}%`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+    {% endfor %}
+
+    // Chart tabs
+    const chartTabs = document.querySelectorAll('.chart-tab');
+    const chartContainers = {
+      'portfolio': document.getElementById('portfolio-chart-container'),
+      'mdd': document.getElementById('mdd-chart-container'),
+      'cash': document.getElementById('cash-chart-container'),
+      'transaction': document.getElementById('transaction-chart-container')
+    };
+
+    chartTabs.forEach(tab => {
+      tab.addEventListener('click', function() {
+        // Remove active class from all tabs
+        chartTabs.forEach(t => t.classList.remove('active'));
+
+        // Add active class to clicked tab
+        this.classList.add('active');
+
+        // Hide all chart containers
+        Object.values(chartContainers).forEach(container => {
+          container.style.display = 'none';
+        });
+
+        // Show the selected chart container
+        const chartType = this.dataset.chart;
+        chartContainers[chartType].style.display = 'block';
+      });
+    });
+
+    // Holdings date selector
+    const dateButtons = document.querySelectorAll('.holdings-date-tab');
+    if (dateButtons.length > 0) {
+      dateButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          // Deactivate all buttons
+          dateButtons.forEach(btn => btn.classList.remove('active'));
+
+          // Activate clicked button
+          this.classList.add('active');
+
+          // Hide all holdings content
+          document.querySelectorAll('.holdings-content').forEach(content => {
+            content.style.display = 'none';
+          });
+
+          // Show the selected holdings content
+          const date = this.dataset.date;
+          document.getElementById(`holdings-${date}`).style.display = 'block';
+        });
+      });
+    }
+  });
+
+  function downloadAllData() {
+    const downloadBtn = document.getElementById('downloadBtn');
+    // Update button text and disable it during download
+    downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Preparing Data...';
+    downloadBtn.disabled = true;
+
+    const methodologyName = '{{ data.name }}';
+    const queryString = window.location.search;
+    const downloadUrl = `/download_data/${methodologyName}${queryString}`;
+
+    // Use setTimeout to restore button after a delay
+    setTimeout(function() {
+      window.location.href = downloadUrl;
+
+      // Restore button after 3 seconds
+      setTimeout(function() {
+        downloadBtn.innerHTML = '<i class="fas fa-file-excel me-2"></i>Download All Data';
+        downloadBtn.disabled = false;
+      }, 3000);
+    }, 500);
+  }
+</script>
+{% endblock %}

@@ -20,7 +20,6 @@ class DirMkt(Enum):
     KOSPI200 = "KOSPI200"
     KOSDAQ = "KOSDAQ"
     KOSDAQ150 = "KOSDAQ150"
-    MKF500 = "MKF500"
     ALL = "ALL"
 
 
@@ -37,6 +36,11 @@ class ISItem(Enum):
     gp_lfq0 = "gp_lfq0"
     ebitda_ttm_lfq0 = "ebitda_ttm_lfq0"
     ni_ttm_lfq0 = "ni_ttm_lfq0"
+    sales_ttm_nfq1 = "sales_ttm_nfq1"
+    err_1m = "err_1m"
+    err_2m = "err_2m"
+    opr_nfq1 = "opr_nfq1"
+    opr_nfq1_e = "opr_nfq1_e"
 
     def as_is(self):
         return IS % self.value
@@ -65,11 +69,11 @@ class BaseItem(Enum):
     bm = "bm"
     price_adj = "price_adj"
     volume = "volume"
-    volume_foreign_net_long = "volume_foreign_net_long"
     shares_outstanding = "shares_outstanding"
     mktcap_float = "mktcap_float"
     trans_ban = "trans_ban"
     ev_ttm_lfq0 = "ev_ttm_lfq0"
+    wics_sector_big = "wics_sector_big"
 
     def as_base(self):
         return BASE % self.value
@@ -84,6 +88,11 @@ class DataPool(Enum):
     data_is_gp_lfq0 = ISItem.gp_lfq0.as_is()
     data_ebitda_ttm_lfq0 = ISItem.ebitda_ttm_lfq0.as_is()
     data_ni_ttm_lfq0 = ISItem.ni_ttm_lfq0.as_is()
+    data_sales_ttm_nfq1 = ISItem.sales_ttm_nfq1.as_is()
+    data_err_1m = ISItem.err_1m.as_is()
+    data_err_2m = ISItem.err_2m.as_is()
+    data_opr_nfq1 = ISItem.opr_nfq1.as_is()
+    data_opr_nfq1_e = ISItem.opr_nfq1_e.as_is()
 
     # NOTE: CF Items
     data_cf_fcf_ttm_lfq0 = CFItem.fcf_ttm_lfq0.as_cf()
@@ -97,18 +106,20 @@ class DataPool(Enum):
     data_base_bm = BaseItem.bm.as_base()
     data_base_price_adj = BaseItem.price_adj.as_base()
     data_base_volume = BaseItem.volume.as_base()
-    data_base_volume_foreign_net_long = BaseItem.volume_foreign_net_long.as_base()
     data_base_shares_outstanding = BaseItem.shares_outstanding.as_base()
     data_base_mktcap_float = BaseItem.mktcap_float.as_base()
     data_base_trans_ban = BaseItem.trans_ban.as_base()
     data_base_ev_ttm_lfq0 = BaseItem.ev_ttm_lfq0.as_base()
+    data_base_wics_sector_big = BaseItem.wics_sector_big.as_base()
 
 
 class DataLoader:
     def __init__(self,
-                 mkt: str = 'KOSPI200'):
+                 mkt: str = 'KOSPI200',
+                 data_dir: str = None):
         self.data_verifier(mkt=mkt)
         self.mkt_value = DirMkt[mkt].value
+        self.data_dir = data_dir if data_dir else os.path.join(os.path.dirname(__file__), 'DATA')
 
     @staticmethod
     def data_verifier(mkt):
@@ -119,11 +130,11 @@ class DataLoader:
 
     @property
     def data_constituents(self) -> pd.DataFrame:
-        data_path = f'./DATA/data_const_{self.mkt_value}.parquet'
+        data_path = os.path.join(self.data_dir, f'data_const_{self.mkt_value}.parquet')
         return pd.read_parquet(data_path)
 
     def __repr__(self) -> str:
-        return f"mkt_value: {self.mkt_value}"
+        return f"mkt_value: {self.mkt_value}, data_dir: {self.data_dir}"
 
     def __call__(self,
                  data_name: str,
@@ -137,7 +148,7 @@ class DataLoader:
         if not res:
             raise ValueError(f"No matching data name for <{data_name}>.")
 
-        data_path = f'./DATA/{DataPool[res].value}.parquet'
+        data_path = os.path.join(self.data_dir, f'{DataPool[res].value}.parquet')
         if data_name == 'bm':
             data = self.data_loader_bm(data_path=data_path,
                                        tr_yn=tr_yn)
@@ -166,7 +177,9 @@ class DataLoader:
             return df[valid_items]
 
     @staticmethod
-    def get_data_size(directory: str = './DATA') -> pd.DataFrame:
+    def get_data_size(directory: str = None) -> pd.DataFrame:
+        if directory is None:
+            directory = os.path.join(os.path.dirname(__file__), 'DATA')
         files = [f for f in os.listdir(directory) if f.endswith('.parquet')]
 
         file_info = []

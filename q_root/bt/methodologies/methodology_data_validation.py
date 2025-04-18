@@ -1,9 +1,10 @@
-import time
-import datetime as dt
+import numpy as np
+import pandas as pd
+from typing import Dict
 
-from tools import *
-from loader import *
-from methodology import *
+from bt.tools import Tools
+from bt.loader import DataLoader
+from bt.methodology import Methodology
 
 # NOTE: Used for data validation by comparing KOSPI 200.
 
@@ -11,8 +12,8 @@ from methodology import *
 class MethodologyDataValidation(Methodology):
     def __init__(self,
                  mkt: str = 'KOSPI200',
-                 start_date: str = '20121228',
-                 end_date: str = '20241031',
+                 start_date: str = '20110101',
+                 end_date: str = '20250331',
                  **kwargs):
         freq = kwargs.pop('freq', 'monthly')
         super().__init__(mkt, start_date, end_date, **kwargs)
@@ -33,7 +34,9 @@ class MethodologyDataValidation(Methodology):
         const = DataLoader(
             mkt=self.mkt).data_constituents[self.start_date: self.end_date]
         self.const = Tools.get_data_align(const=const,
-                                          prc=self.data['price_adj'])
+                                          prc=self.data['price_adj'],
+                                          check_nan=False,
+                                          fill_method=None)
 
     @property
     def weights(self) -> pd.DataFrame:

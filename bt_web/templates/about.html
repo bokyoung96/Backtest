@@ -1,0 +1,153 @@
+{% extends 'base.html' %} {% block title %}About Backtesting Framework{%
+endblock %} {% block content %}
+<div class="container mt-5">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <h2 class="mb-0">About Our Backtesting Framework</h2>
+        </div>
+        <div class="card-body">
+          <h3>Overview</h3>
+          <p>
+            Our backtesting framework is a powerful and flexible tool designed
+            for portfolio strategy testing and analysis. It provides
+            comprehensive features for strategy implementation, cost modeling,
+            portfolio management, and performance analytics.
+          </p>
+
+          <h3>Key Features</h3>
+          <div class="row mt-4">
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-body">
+                  <h5 class="card-title">Strategy Implementation</h5>
+                  <ul>
+                    <li>Custom strategy development</li>
+                    <li>Flexible weight calculation</li>
+                    <li>Support for long/short positions</li>
+                    <li>Multiple strategy comparison</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-body">
+                  <h5 class="card-title">Cost Modeling</h5>
+                  <ul>
+                    <li>Buy/sell commissions</li>
+                    <li>Market impact (slippage)</li>
+                    <li>Transaction taxes</li>
+                    <li>Cash rate consideration</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row mt-4">
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-body">
+                  <h5 class="card-title">Portfolio Management</h5>
+                  <ul>
+                    <li>Dynamic rebalancing</li>
+                    <li>Position sizing</li>
+                    <li>Cash management</li>
+                    <li>Holdings tracking</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-body">
+                  <h5 class="card-title">Performance Analytics</h5>
+                  <ul>
+                    <li>Return metrics</li>
+                    <li>Risk assessment</li>
+                    <li>Benchmark comparison</li>
+                    <li>Transaction cost analysis</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <h3 class="mt-5">Architecture</h3>
+          <div class="mt-4">
+            <h5>Core Components</h5>
+            <ul class="list-group">
+              <li class="list-group-item">
+                <strong>PortfolioAnalysis</strong>: Main class for running
+                backtests
+                <ul>
+                  <li>Methodology selection and initialization</li>
+                  <li>Portfolio construction management</li>
+                  <li>Performance metrics calculation</li>
+                </ul>
+              </li>
+              <li class="list-group-item">
+                <strong>PortfolioBacktester</strong>: Core backtesting engine
+                <ul>
+                  <li>Backtesting simulation execution</li>
+                  <li>Portfolio rebalancing management</li>
+                  <li>Value and cash balance tracking</li>
+                </ul>
+              </li>
+              <li class="list-group-item">
+                <strong>Methodology</strong>: Strategy implementation base
+                <ul>
+                  <li>Custom investment strategy definition</li>
+                  <li>Weight calculation implementation</li>
+                  <li>Position type support (long/short)</li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+
+          <h3 class="mt-5">Transaction Cost Model</h3>
+          <div class="table-responsive mt-4">
+            <table class="table table-bordered">
+              <thead class="table-light">
+                <tr>
+                  <th>Cost Component</th>
+                  <th>Description</th>
+                  <th>Default Value (Korea)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Buy Commission</td>
+                  <td>Fee charged when buying securities</td>
+                  <td>0.02%</td>
+                </tr>
+                <tr>
+                  <td>Sell Commission</td>
+                  <td>Fee charged when selling securities</td>
+                  <td>0.02%</td>
+                </tr>
+                <tr>
+                  <td>Slippage</td>
+                  <td>Market impact cost</td>
+                  <td>0.05%</td>
+                </tr>
+                <tr>
+                  <td>Sell Tax</td>
+                  <td>Transaction tax on sales</td>
+                  <td>0.15%</td>
+                </tr>
+                <tr>
+                  <td>Cash Rate</td>
+                  <td>Interest rate on cash holdings</td>
+                  <td>0.00%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

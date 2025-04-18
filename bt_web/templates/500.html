@@ -1,0 +1,65 @@
+{% extends 'base.html' %} {% block title %}Server Error{% endblock %} {% block
+head_extra %}
+<style>
+  .error-container {
+    max-width: 800px;
+    margin: 4rem auto;
+    text-align: center;
+    padding: 3rem 2rem;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  .error-icon {
+    font-size: 4rem;
+    color: #dc3545;
+    margin-bottom: 1.5rem;
+  }
+
+  .error-title {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #343a40;
+    margin-bottom: 1rem;
+  }
+
+  .error-message {
+    font-size: 1.1rem;
+    color: #6c757d;
+    margin-bottom: 2rem;
+  }
+
+  .btn-primary {
+    background-color: #1a759f;
+    border-color: #1a759f;
+    padding: 0.5rem 1.5rem;
+    font-weight: 500;
+    border-radius: 5px;
+    transition: all 0.2s ease;
+  }
+
+  .btn-primary:hover {
+    background-color: #1e6091;
+    border-color: #1e6091;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="container">
+  <div class="error-container">
+    <div class="error-icon">
+      <i class="fas fa-server"></i>
+    </div>
+    <h1 class="error-title">500 - Server Error</h1>
+    <p class="error-message">
+      We're experiencing some technical difficulties. Our team has been notified
+      and is working to fix the issue.
+    </p>
+    <a href="{{ url_for('index') }}" class="btn btn-primary">
+      <i class="fas fa-home me-2"></i>Return to Homepage
+    </a>
+  </div>
+</div>
+{% endblock %}

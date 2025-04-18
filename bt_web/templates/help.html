@@ -1,0 +1,250 @@
+{% extends 'base.html' %} {% block title %}Help & Documentation{% endblock %} {%
+block content %}
+<div class="container mt-5">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <h2 class="mb-0">Help & Documentation</h2>
+        </div>
+        <div class="card-body">
+          <div class="accordion" id="helpAccordion">
+            <!-- Getting Started -->
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="headingOne">
+                <button
+                  class="accordion-button"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#collapseOne"
+                >
+                  Getting Started
+                </button>
+              </h2>
+              <div
+                id="collapseOne"
+                class="accordion-collapse collapse show"
+                data-bs-parent="#helpAccordion"
+              >
+                <div class="accordion-body">
+                  <h5>Running Your First Backtest</h5>
+                  <ol>
+                    <li>
+                      Select your strategy from the available methodologies
+                    </li>
+                    <li>
+                      Set the backtest parameters (period, initial investment,
+                      etc.)
+                    </li>
+                    <li>Configure transaction costs</li>
+                    <li>Run the backtest and analyze results</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+
+            <!-- Understanding Results -->
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="headingTwo">
+                <button
+                  class="accordion-button collapsed"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#collapseTwo"
+                >
+                  Understanding Results
+                </button>
+              </h2>
+              <div
+                id="collapseTwo"
+                class="accordion-collapse collapse"
+                data-bs-parent="#helpAccordion"
+              >
+                <div class="accordion-body">
+                  <h5>Performance Metrics</h5>
+                  <ul>
+                    <li>
+                      <strong>Total Return</strong>: Overall portfolio return
+                      over the entire period
+                    </li>
+                    <li>
+                      <strong>Annualized Return</strong>: Return normalized to a
+                      yearly basis
+                    </li>
+                    <li>
+                      <strong>Sharpe Ratio</strong>: Risk-adjusted return
+                      measure
+                    </li>
+                    <li>
+                      <strong>Volatility</strong>: Standard deviation of returns
+                    </li>
+                    <li>
+                      <strong>Maximum Drawdown</strong>: Largest peak-to-trough
+                      decline
+                    </li>
+                    <li>
+                      <strong>Win Rate</strong>: Percentage of profitable
+                      periods
+                    </li>
+                  </ul>
+
+                  <h5>Charts</h5>
+                  <ul>
+                    <li>
+                      <strong>Portfolio Value</strong>: Cumulative portfolio
+                      performance vs benchmark
+                    </li>
+                    <li>
+                      <strong>Maximum Drawdown</strong>: Visualization of
+                      drawdowns over time
+                    </li>
+                    <li>
+                      <strong>Cash Balance</strong>: Cash position changes
+                    </li>
+                    <li>
+                      <strong>Transaction Costs</strong>: Cost analysis over
+                      time
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- Transaction Costs -->
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="headingThree">
+                <button
+                  class="accordion-button collapsed"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#collapseThree"
+                >
+                  Transaction Costs
+                </button>
+              </h2>
+              <div
+                id="collapseThree"
+                class="accordion-collapse collapse"
+                data-bs-parent="#helpAccordion"
+              >
+                <div class="accordion-body">
+                  <h5>Cost Components</h5>
+                  <div class="table-responsive">
+                    <table class="table">
+                      <thead>
+                        <tr>
+                          <th>Component</th>
+                          <th>Description</th>
+                          <th>Calculation</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>Buy Commission</td>
+                          <td>Broker fee for buying</td>
+                          <td>Trade Value × Commission Rate</td>
+                        </tr>
+                        <tr>
+                          <td>Sell Commission</td>
+                          <td>Broker fee for selling</td>
+                          <td>Trade Value × Commission Rate</td>
+                        </tr>
+                        <tr>
+                          <td>Slippage</td>
+                          <td>Market impact cost</td>
+                          <td>Trade Value × Slippage Rate</td>
+                        </tr>
+                        <tr>
+                          <td>Sell Tax</td>
+                          <td>Transaction tax</td>
+                          <td>Sell Value × Tax Rate</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <h5>Preset Cost Models</h5>
+                  <div class="card mb-3">
+                    <div class="card-body">
+                      <h6>Korea Stock Market (Default)</h6>
+                      <ul>
+                        <li>Buy Commission: 0.02%</li>
+                        <li>Sell Commission: 0.02%</li>
+                        <li>Slippage: 0.05%</li>
+                        <li>Sell Tax: 0.15%</li>
+                        <li>Cash Rate: 0.00%</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="card">
+                    <div class="card-body">
+                      <h6>No Transaction Cost</h6>
+                      <ul>
+                        <li>All costs set to 0%</li>
+                        <li>Used for theoretical analysis</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Advanced Features -->
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="headingFour">
+                <button
+                  class="accordion-button collapsed"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#collapseFour"
+                >
+                  Advanced Features
+                </button>
+              </h2>
+              <div
+                id="collapseFour"
+                class="accordion-collapse collapse"
+                data-bs-parent="#helpAccordion"
+              >
+                <div class="accordion-body">
+                  <h5>Strategy Customization</h5>
+                  <p>
+                    Create custom strategies by implementing the Methodology
+                    interface:
+                  </p>
+                  <pre><code>class MyMethodology(Methodology):
+    def __init__(self, mkt, start_date, end_date, **kwargs):
+        super().__init__(mkt, start_date, end_date, **kwargs)
+        
+    @property
+    def weights(self) -> pd.DataFrame:
+        # Implement your strategy logic
+        return weights_df</code></pre>
+
+                  <h5>Rebalancing Options</h5>
+                  <ul>
+                    <li>
+                      <strong>next</strong>: Execute trades at next day's open
+                    </li>
+                    <li>
+                      <strong>close</strong>: Execute trades at current day's
+                      close
+                    </li>
+                  </ul>
+
+                  <h5>Position Types</h5>
+                  <ul>
+                    <li><strong>1</strong>: Long position</li>
+                    <li><strong>-1</strong>: Short position</li>
+                    <li><strong>NaN</strong>: No position</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

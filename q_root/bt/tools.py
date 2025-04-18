@@ -52,13 +52,24 @@ class Tools:
 
     @staticmethod
     def get_data_align(const: pd.DataFrame,
-                       prc: pd.DataFrame) -> pd.DataFrame:
+                       prc: pd.DataFrame,
+                       check_nan: bool = True,
+                       fill_method: str = 'ffill_bfill') -> pd.DataFrame:
         const = const.sort_index()
         prc = prc.sort_index()
 
-        res = const.reindex(prc.index, method='ffill').bfill()
+        if fill_method == 'ffill_bfill':
+            res = const.reindex(prc.index, method='ffill').bfill()
+        elif fill_method == 'ffill':
+            res = const.reindex(prc.index, method='ffill')
+        elif fill_method == 'bfill':
+            res = const.reindex(prc.index, method='bfill')
+        else:
+            res = const.reindex(prc.index)
+            
         res = res.reindex(columns=prc.columns)
-        if res.isnull().values.any():
+        
+        if check_nan and res.isnull().values.any():
             raise ValueError("Unexpected NaN values found after alignment.")
         return res
 

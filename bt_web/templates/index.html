@@ -1,0 +1,524 @@
+{% extends 'base.html' %} {% block title %}Available Methodologies{% endblock %}
+{% block head_extra %}
+<style>
+  body {
+    background-color: #f8f9fa;
+    font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .header-section {
+    background: linear-gradient(135deg, #184e77 0%, #1e6091 100%);
+    color: white;
+    padding: 3rem 2rem;
+    border-radius: 10px;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: center;
+  }
+
+  .header-title {
+    font-weight: 700;
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .header-subtitle {
+    font-size: 1.2rem;
+    opacity: 0.9;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .container {
+    max-width: 1000px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+
+  .methodology-section,
+  .parameters-section {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    padding: 2rem;
+    margin-bottom: 2rem;
+  }
+
+  .section-title {
+    color: #184e77;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e9ecef;
+  }
+
+  .methodology-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .methodology-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border: 1px solid #e9ecef;
+  }
+
+  .methodology-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    border-color: #1a759f;
+  }
+
+  .card-header {
+    background: #1a759f;
+    padding: 1.2rem;
+    color: white;
+    font-weight: 600;
+    font-size: 1.1rem;
+    text-align: center;
+  }
+
+  .card-body {
+    padding: 1.5rem;
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .card-footer {
+    padding: 1rem;
+    background: #f8f9fa;
+    font-size: 0.9rem;
+    text-align: center;
+    color: #6c757d;
+    border-top: 1px solid #e9ecef;
+  }
+
+  .methodology-description {
+    color: #495057;
+  }
+
+  .alert {
+    background-color: #fff3cd;
+    color: #856404;
+    border-color: #ffeeba;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+  }
+
+  .form-control,
+  .form-select {
+    border-radius: 5px;
+    border: 1px solid #ced4da;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.95rem;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  }
+
+  .form-control:focus,
+  .form-select:focus {
+    border-color: #76c6e3;
+    box-shadow: 0 0 0 0.2rem rgba(26, 117, 159, 0.25);
+  }
+
+  .form-label {
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 0.5rem;
+  }
+
+  .btn-primary {
+    background-color: #1a759f;
+    border-color: #1a759f;
+    color: #fff;
+    padding: 0.5rem 1.5rem;
+    border-radius: 5px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+
+  .btn-primary:hover {
+    background-color: #1e6091;
+    border-color: #1e6091;
+    transform: translateY(-2px);
+  }
+
+  .param-row {
+    margin-bottom: 1.5rem;
+  }
+
+  .loading-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 99999;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .loading-spinner {
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 100000;
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 1rem;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #1a759f;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="container">
+  <div class="loading-overlay">
+    <div class="loading-spinner">
+      <div class="spinner"></div>
+      <div>Running backtest...</div>
+    </div>
+  </div>
+
+  <div class="header-section">
+    <h1 class="header-title">Portfolio Backtesting</h1>
+    <p class="header-subtitle">
+      Analyze and evaluate different investment strategies through comprehensive
+      backtesting. Select a methodology below to view detailed performance
+      metrics and historical results.
+    </p>
+  </div>
+
+  <div class="parameters-section">
+    <h2 class="section-title">Backtest Parameters</h2>
+    <form id="backtest-form" action="/run_backtest" method="POST">
+      <div class="row param-row">
+        <div class="col-md-6">
+          <label for="methodology" class="form-label">Methodology</label>
+          <select
+            class="form-select"
+            id="methodology"
+            name="methodology"
+            required
+          >
+            <option value="" selected disabled>Select a methodology</option>
+            {% for methodology in methodologies %}
+            <option value="{{ methodology }}">{{ methodology }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label for="market" class="form-label">Market</label>
+          <select class="form-select" id="market" name="market">
+            <option value="KOSPI200" selected>KOSPI200</option>
+            <option value="KOSPI">KOSPI</option>
+            <option value="KOSDAQ">KOSDAQ</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row param-row">
+        <div class="col-md-6">
+          <label for="start_date" class="form-label">Start Date</label>
+          <input
+            type="date"
+            class="form-control"
+            id="start_date"
+            name="start_date"
+            value="2020-01-01"
+          />
+        </div>
+        <div class="col-md-6">
+          <label for="end_date" class="form-label">End Date</label>
+          <input
+            type="date"
+            class="form-control"
+            id="end_date"
+            name="end_date"
+            value="2025-03-31"
+          />
+        </div>
+      </div>
+
+      <div class="row param-row">
+        <div class="col-md-6">
+          <label for="initial_investment" class="form-label"
+            >Initial Investment (KRW)</label
+          >
+          <input
+            type="number"
+            class="form-control"
+            id="initial_investment"
+            name="initial_investment"
+            value="100000000"
+            min="1000000"
+          />
+        </div>
+        <div class="col-md-6">
+          <label for="multiplier" class="form-label">Period Multiplier</label>
+          <select class="form-select" id="multiplier" name="multiplier">
+            <option value="D">Daily (D)</option>
+            <option value="M">Monthly (M)</option>
+            <option value="Y" selected>Yearly (Y)</option>
+          </select>
+        </div>
+      </div>
+
+      <h5 class="mt-4 mb-3">Transaction Costs</h5>
+      <div class="row param-row">
+        <div class="col-md-3">
+          <label for="buy_commission" class="form-label">Buy Commission</label>
+          <input
+            type="number"
+            class="form-control"
+            id="buy_commission"
+            name="buy_commission"
+            value="0.0002"
+            step="0.0001"
+            min="0"
+          />
+        </div>
+        <div class="col-md-3">
+          <label for="sell_commission" class="form-label"
+            >Sell Commission</label
+          >
+          <input
+            type="number"
+            class="form-control"
+            id="sell_commission"
+            name="sell_commission"
+            value="0.0002"
+            step="0.0001"
+            min="0"
+          />
+        </div>
+        <div class="col-md-3">
+          <label for="slippage" class="form-label">Slippage</label>
+          <input
+            type="number"
+            class="form-control"
+            id="slippage"
+            name="slippage"
+            value="0.0001"
+            step="0.0001"
+            min="0"
+          />
+        </div>
+        <div class="col-md-3">
+          <label for="sell_tax" class="form-label">Sell Tax</label>
+          <input
+            type="number"
+            class="form-control"
+            id="sell_tax"
+            name="sell_tax"
+            value="0.003"
+            step="0.0001"
+            min="0"
+          />
+        </div>
+      </div>
+
+      <h5 class="mt-4 mb-3">Portfolio Construction Parameters</h5>
+      <div class="row param-row">
+        <div class="col-md-4">
+          <label for="quantile" class="form-label">Number of Quantiles</label>
+          <input
+            type="number"
+            class="form-control"
+            id="quantile"
+            name="quantile"
+            value="5"
+            min="1"
+          />
+        </div>
+        <div class="col-md-4">
+          <label for="quantile_position" class="form-label"
+            >Quantile Positions</label
+          >
+          <input
+            type="text"
+            class="form-control"
+            id="quantile_position"
+            name="quantile_position"
+            value="[1]"
+            placeholder="e.g. [1] or [1,2]"
+          />
+          <small class="form-text text-muted">Enter as JSON array</small>
+        </div>
+        <div class="col-md-4">
+          <label for="weight_type" class="form-label">Weighting Method</label>
+          <select class="form-select" id="weight_type" name="weight_type">
+            <option value="ew" selected>Equal Weight (EW)</option>
+            <option value="mcap">Market Cap Weight</option>
+            <option value="custom">Custom Weight</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row param-row">
+        <div class="col-md-4">
+          <label for="freq" class="form-label">Rebalancing Frequency</label>
+          <select class="form-select" id="freq" name="freq">
+            <option value="monthly" selected>Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="yearly">Yearly</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label for="cash_rate" class="form-label">Cash Interest Rate</label>
+          <input
+            type="number"
+            class="form-control"
+            id="cash_rate"
+            name="cash_rate"
+            value="0.02"
+            step="0.0001"
+            min="0"
+          />
+        </div>
+        <div class="col-md-4">
+          <label for="rebal_timing" class="form-label"
+            >Rebalancing Timing</label
+          >
+          <select class="form-select" id="rebal_timing" name="rebal_timing">
+            <option value="next" selected>Next Day (next)</option>
+            <option value="same">Same Day (same)</option>
+          </select>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary mt-3">
+        <i class="fas fa-play-circle me-2"></i>Run Backtest
+      </button>
+    </form>
+  </div>
+
+  <div class="methodology-section">
+    <h2 class="section-title">Quick Start: Select a Methodology</h2>
+
+    {% if methodologies %}
+    <div class="methodology-grid">
+      {% for methodology in methodologies %}
+      <a
+        href="{{ url_for('methodology_performance', name=methodology) }}"
+        class="methodology-card"
+      >
+        <div class="card-header">{{ methodology }}</div>
+        <div class="card-body">
+          <div class="methodology-description">
+            Click to view detailed performance analysis
+          </div>
+        </div>
+        <div class="card-footer">
+          <i class="fas fa-chart-line"></i> Performance Metrics
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert" role="alert">
+      <i class="fas fa-exclamation-triangle mr-2"></i> No methodologies found or
+      unable to connect to the backtesting service.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  document
+    .getElementById("backtest-form")
+    .addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      // Show loading overlay
+      const loadingOverlay = document.querySelector(".loading-overlay");
+      loadingOverlay.style.display = "flex";
+
+      const formData = new FormData(this);
+      const methodologyName = formData.get("methodology");
+      const startDate = formData.get("start_date").replace(/-/g, "");
+      const endDate = formData.get("end_date").replace(/-/g, "");
+      const market = formData.get("market");
+      const initialInvestment = formData.get("initial_investment");
+      const multiplier = formData.get("multiplier");
+      const buyCommission = formData.get("buy_commission");
+      const sellCommission = formData.get("sell_commission");
+      const slippage = formData.get("slippage");
+      const sellTax = formData.get("sell_tax");
+      const cashRate = formData.get("cash_rate");
+      const rebalTiming = formData.get("rebal_timing");
+      const quantile = formData.get("quantile");
+      const quantilePosition = formData.get("quantile_position");
+      const weightType = formData.get("weight_type");
+      const freq = formData.get("freq");
+
+      // Build the URL with query parameters
+      let url = `/methodology/${methodologyName}?`;
+      url += `market=${market}`;
+      url += `&start_date=${startDate}`;
+      url += `&end_date=${endDate}`;
+      url += `&initial_investment=${initialInvestment}`;
+      url += `&multiplier=${multiplier}`;
+      url += `&buy_commission=${buyCommission}`;
+      url += `&sell_commission=${sellCommission}`;
+      url += `&slippage=${slippage}`;
+      url += `&sell_tax=${sellTax}`;
+      url += `&cash_rate=${cashRate}`;
+      url += `&rebal_timing=${rebalTiming}`;
+      url += `&quantile=${quantile}`;
+      url += `&quantile_position=${quantilePosition}`;
+      url += `&weight_type=${weightType}`;
+      url += `&freq=${freq}`;
+
+      try {
+        // Redirect to the URL
+        window.location.href = url;
+
+        // Keep the loading overlay visible
+        // It will remain visible until the new page loads
+        loadingOverlay.style.display = "flex";
+      } catch (error) {
+        console.error("Error:", error);
+        loadingOverlay.style.display = "none";
+      }
+    });
+
+  // Ensure loading overlay is hidden when the page loads
+  window.addEventListener("load", function () {
+    const loadingOverlay = document.querySelector(".loading-overlay");
+    if (loadingOverlay) {
+      loadingOverlay.style.display = "none";
+    }
+  });
+</script>
+{% endblock %}
