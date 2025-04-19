@@ -119,7 +119,8 @@ class DataLoader:
                  data_dir: str = None):
         self.data_verifier(mkt=mkt)
         self.mkt_value = DirMkt[mkt].value
-        self.data_dir = data_dir if data_dir else os.path.join(os.path.dirname(__file__), 'DATA')
+        self.data_dir = data_dir if data_dir else os.path.join(
+            os.path.dirname(__file__), 'DATA')
 
     @staticmethod
     def data_verifier(mkt):
@@ -130,7 +131,8 @@ class DataLoader:
 
     @property
     def data_constituents(self) -> pd.DataFrame:
-        data_path = os.path.join(self.data_dir, f'data_const_{self.mkt_value}.parquet')
+        data_path = os.path.join(
+            self.data_dir, f'data_const_{self.mkt_value}.parquet')
         return pd.read_parquet(data_path)
 
     def __repr__(self) -> str:
@@ -148,7 +150,8 @@ class DataLoader:
         if not res:
             raise ValueError(f"No matching data name for <{data_name}>.")
 
-        data_path = os.path.join(self.data_dir, f'{DataPool[res].value}.parquet')
+        data_path = os.path.join(
+            self.data_dir, f'{DataPool[res].value}.parquet')
         if data_name == 'bm':
             data = self.data_loader_bm(data_path=data_path,
                                        tr_yn=tr_yn)

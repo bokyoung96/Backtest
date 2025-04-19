@@ -351,6 +351,7 @@ class PortfolioBacktester:
         self.price = data_loader(data_name='price_adj').fillna(0)
         self.bm = data_loader(data_name='bm')
         self.trans_ban = data_loader(data_name='trans_ban')
+        self.sector = data_loader(data_name='wics_sector_big')
 
         self.date_manager = DateManager(formation_dates_index=self.weights.index,
                                         bday_dates_index=self.price.index,
@@ -928,11 +929,9 @@ class PortfolioBacktester:
                     "[Backtester] Backtest has not been run. Run run_backtest() first.")
             return pd.DataFrame()
 
-        # Extract quantities and dates
         quantities_list = []
         dates_list = []
         for item in self._final_holdings_data:
-            # Only include if quantity Series is not empty
             if not item['Quantity'].empty:
                 dates_list.append(item['Date'])
                 quantities_list.append(item['Quantity'])
@@ -946,12 +945,10 @@ class PortfolioBacktester:
                 "[Backtester] No non-empty portfolio quantities found.")
             return pd.DataFrame()
 
-        # Concatenate along columns (axis=1), then transpose. Dates become the index.
-        # Using dictionary comprehension for potentially better performance with many dates/series
         df_quantities = pd.DataFrame(
             {date: qty for date, qty in zip(dates_list, quantities_list)}).T
         df_quantities.index.name = 'Date'
-        return df_quantities.sort_index()  # Ensure sorted by date
+        return df_quantities.sort_index()
 
     def get_holdings_snapshot(self, top_n: Optional[int] = None) -> Dict[str, pd.DataFrame]:
         """
@@ -977,20 +974,16 @@ class PortfolioBacktester:
         holdings_snapshots = {}
         for item in self._final_holdings_data:
             date = item['Date']
-            # This is the quantity *after* rebalancing on 'date'
             quantities = item['Quantity']
 
             if quantities.empty:
                 logging.debug(
                     f"[Holdings] No holdings recorded for date {date.strftime('%Y%m%d')}.")
-                # Optionally add an empty DataFrame to the snapshot for this date
-                # holdings_snapshots[dt.datetime.strftime(date, format='%Y%m%d')] = pd.DataFrame()
-                continue  # Skip dates with no holdings
+                continue
 
             date_str = dt.datetime.strftime(date, format='%Y%m%d')
 
             try:
-                # Get prices for the held stocks on the rebalancing date
                 if date not in self.price.index:
                     logging.warning(
                         f"[Holdings] Price data missing for snapshot date {date_str}. Cannot create snapshot.")
@@ -1005,16 +998,13 @@ class PortfolioBacktester:
                         f"[Holdings] No valid stocks with price data found for holdings snapshot on date {date_str}")
                     continue
 
-                # Create DataFrame for this snapshot
                 holdings_df = pd.DataFrame({
                     'quantity': quantities.loc[valid_stocks],
                     'price': prices_at_date.loc[valid_stocks],
                 })
 
-                # Calculate market value and filter out zero-value holdings (can happen with rounding)
                 holdings_df['market_value'] = holdings_df['quantity'] * \
                     holdings_df['price']
-                # Use tolerance
                 holdings_df = holdings_df[holdings_df['market_value'] > 1e-9]
 
                 if holdings_df.empty:
@@ -1022,16 +1012,13 @@ class PortfolioBacktester:
                         f"[Holdings] Holdings for date {date_str} have zero market value after calculation.")
                     continue
 
-                # Calculate weights within the snapshot
                 total_market_value = holdings_df['market_value'].sum()
                 holdings_df['weight'] = holdings_df['market_value'] / \
                     total_market_value if total_market_value > 0 else 0
 
-                # Sort by market value (descending)
                 holdings_df = holdings_df.sort_values(
                     'market_value', ascending=False)
 
-                # Apply top_n filter if specified
                 if top_n is not None and top_n > 0:
                     holdings_df = holdings_df.head(top_n)
 
@@ -1045,8 +1032,96 @@ class PortfolioBacktester:
                 logging.error(
                     f"[Holdings] Unexpected error creating holdings snapshot for {date_str}: {e}")
                 continue
-
         return holdings_snapshots
+
+    def get_sector_snapshot(self) -> Dict[str, Dict[str, float]]:
+        """
+        Calculates the sector allocation (based on 'wics_sector_big') for the portfolio
+        at each rebalancing date by leveraging the pre-calculated holdings snapshot.
+
+        Returns:
+            Dict[str, Dict[str, float]]: Dictionary mapping dates (YYYYMMDD format)
+                                         to inner dictionaries mapping sector names to weights (%).
+        """
+        holdings_snapshots = self.get_holdings_snapshot()
+        if not holdings_snapshots:
+            logging.warning(
+                "[SectorSnapshot] No holdings snapshots available to calculate sector data.")
+            return {}
+
+        if self.sector is None or self.sector.empty:
+            logging.error(
+                "[SectorSnapshot] Sector data (self.sector) is not loaded or empty.")
+            return {}
+        logging.info(
+            f"[SectorSnapshot] Using pre-loaded sector data for market {self.mkt}")
+
+        sector_snapshots = {}
+        for date_str, holdings_df in holdings_snapshots.items():
+            if holdings_df.empty or 'weight' not in holdings_df.columns:
+                logging.debug(
+                    f"[SectorSnapshot] Holdings snapshot for {date_str} is empty or missing 'weight' column. Skipping.")
+                continue
+
+            try:
+                try:
+                    date = dt.datetime.strptime(date_str, '%Y%m%d')
+                except ValueError:
+                    logging.error(
+                        f"[SectorSnapshot] Invalid date format in holdings snapshot key: {date_str}")
+                    continue
+
+                if date not in self.sector.index:
+                    logging.warning(
+                        f"[SectorSnapshot] Date {date_str} not found in sector data index. Skipping sector calculation for this date.")
+                    continue
+
+                tickers = holdings_df.index
+                sector_data_for_date = self.sector.loc[[
+                    date], self.sector.columns.intersection(tickers)]
+
+                date_sectors: Dict[str, float] = {}
+                for ticker in tickers:
+                    if ticker not in sector_data_for_date.columns:
+                        continue
+
+                    sector = sector_data_for_date.loc[date, ticker]
+
+                    if pd.notna(sector) and sector != 'None' and isinstance(sector, str):
+                        weight = holdings_df.loc[ticker, 'weight']
+                        date_sectors[sector] = date_sectors.get(
+                            sector, 0.0) + weight
+                    else:
+                        logging.debug(
+                            f"[SectorSnapshot] Ticker {ticker} has missing/invalid sector ('{sector}') on {date_str}.")
+
+                if date_sectors:
+                    current_total_weight = sum(date_sectors.values())
+                    if current_total_weight > 1e-9:
+                        normalized_sectors = {
+                            sector: (weight / current_total_weight) * 100.0
+                            for sector, weight in date_sectors.items()
+                        }
+                        sector_snapshots[date_str] = normalized_sectors
+                    else:
+                        logging.debug(
+                            f"[SectorSnapshot] Total sector weight is zero for date {date_str} after aggregation.")
+                else:
+                    logging.debug(
+                        f"[SectorSnapshot] No valid sector data found for any holdings on {date_str}.")
+
+            except KeyError as e:
+                logging.error(
+                    f"[SectorSnapshot] KeyError accessing data for sector snapshot on {date_str}: {e}")
+                continue
+            except Exception as e:
+                logging.error(
+                    f"[SectorSnapshot] Unexpected error creating sector snapshot for {date_str}: {e}")
+                import traceback
+                traceback.print_exc()
+                continue
+        return sector_snapshots
+
 
 # Example of how PortfolioAnalysis might use the refactored class
 # (This part would typically be in main.py or analysis.py)
