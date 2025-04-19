@@ -75,7 +75,8 @@ class PortfolioAnalysis:
         holdings = self.portfolio_constructor.get_holdings_snapshot()
 
         if pf_ret is None or pf_ret.empty:
-            logging.error("Portfolio returns are empty, cannot calculate performance.")
+            logging.error(
+                "Portfolio returns are empty, cannot calculate performance.")
             return
 
         self.perf_msre = PortfolioPerformance(pf_ret=pf_ret,
@@ -167,6 +168,16 @@ class PortfolioAnalysis:
                 return self.portfolio_constructor.get_holdings_snapshot()
             except Exception as e:
                 print(f"Error accessing holdings_snapshot: {e}")
+                return None
+        return None
+
+    @property
+    def sector_snapshot(self) -> Optional[Dict[str, Dict[str, float]]]:
+        if self.portfolio_constructor:
+            try:
+                return self.portfolio_constructor.get_sector_snapshot()
+            except Exception as e:
+                logging.error(f"Error accessing sector_snapshot: {e}")
                 return None
         return None
 

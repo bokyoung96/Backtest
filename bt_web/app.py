@@ -2,6 +2,7 @@ from __version__ import __title__, __version__
 from bt.methodology_type import MethodologyType, methodology_clses
 from bt.main import PortfolioAnalysis
 from bt.methodologies import *
+from bt.loader import DataLoader
 import matplotlib.pyplot as plt
 import pandas as pd
 import matplotlib
@@ -9,6 +10,7 @@ from flask import Flask, render_template, request, send_file
 from io import BytesIO
 import json
 from datetime import datetime
+import numpy as np
 
 matplotlib.use('Agg')
 plt.show = lambda: None
@@ -285,7 +287,6 @@ def methodology_performance(name):
         import traceback
         traceback.print_exc()
         return render_template('error.html', message=f"An unexpected error occurred: {e}")
-
     return render_template('performance.html', data=performance_data)
 
 
