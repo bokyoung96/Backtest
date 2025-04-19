@@ -241,6 +241,167 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
   .code-style {
     font-family: "Consolas", monospace;
   }
+
+  .range-selector {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding: 0 1.5rem;
+  }
+
+  .range-btn {
+    padding: 5px 15px;
+    border: 1px solid #1a759f;
+    border-radius: 4px;
+    background: white;
+    color: #1a759f;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+  }
+
+  .range-btn:hover,
+  .range-btn.active {
+    background: #1a759f;
+    color: white;
+  }
+
+  .range-slider {
+    width: 100%;
+    padding: 0 1.5rem;
+    margin: 20px 0;
+    position: relative;
+  }
+
+  .double-range {
+    position: relative;
+    height: 6px;
+    border-radius: 20px;
+    background: #f0f3f6;
+    margin: 30px 0;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .double-range .track {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #2a9fd6, #1a759f);
+    border-radius: 20px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  .double-range input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    position: absolute;
+    pointer-events: none;
+    width: 100%;
+    height: 6px;
+    opacity: 0;
+    margin: 0;
+    top: 0;
+  }
+
+  .double-range input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    pointer-events: auto;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 2px 6px rgba(26, 117, 159, 0.3);
+    position: relative;
+    z-index: 2;
+  }
+
+  .double-range input[type="range"]::-webkit-slider-thumb:hover {
+    background: #ffffff;
+    transform: scale(1.15);
+    box-shadow: 0 3px 8px rgba(26, 117, 159, 0.4);
+  }
+
+  .double-range input[type="range"]:active::-webkit-slider-thumb {
+    background: #ffffff;
+    box-shadow: 0 3px 12px rgba(26, 117, 159, 0.5);
+  }
+
+  .double-range input[type="range"]::-moz-range-thumb {
+    pointer-events: auto;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 2px 6px rgba(26, 117, 159, 0.3);
+    position: relative;
+    z-index: 2;
+  }
+
+  .double-range input[type="range"]::-moz-range-thumb:hover {
+    background: #ffffff;
+    transform: scale(1.15);
+    box-shadow: 0 3px 8px rgba(26, 117, 159, 0.4);
+  }
+
+  .double-range input[type="range"]:active::-moz-range-thumb {
+    background: #ffffff;
+    box-shadow: 0 3px 12px rgba(26, 117, 159, 0.5);
+  }
+
+  .date-tooltip {
+    position: absolute;
+    top: -32px;
+    transform: translateX(-50%);
+    background: #1a759f;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+    pointer-events: none;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+    z-index: 3;
+    max-width: 120px;
+    text-align: center;
+  }
+
+  .date-tooltip.left-edge {
+    transform: translateX(0);
+    left: 0 !important;
+  }
+
+  .date-tooltip.right-edge {
+    transform: translateX(-100%);
+    right: 0 !important;
+    left: auto !important;
+  }
+
+  .date-tooltip::before {
+    content: "";
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px 6px 0;
+    border-style: solid;
+    border-color: #1a759f transparent transparent;
+  }
+
+  .date-tooltip.visible {
+    opacity: 1;
+    visibility: visible;
+  }
 </style>
 {% endblock %} {% block content %}
 <div class="container">
@@ -369,6 +530,22 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
         <div class="chart-tab" data-chart="mdd">Maximum Drawdown</div>
         <div class="chart-tab" data-chart="cash">Cash Balance</div>
         <div class="chart-tab" data-chart="transaction">Transaction Costs</div>
+      </div>
+
+      <div class="range-selector">
+        <button class="range-btn" data-range="1M">1M</button>
+        <button class="range-btn" data-range="3M">3M</button>
+        <button class="range-btn" data-range="6M">6M</button>
+        <button class="range-btn" data-range="1Y">1Y</button>
+        <button class="range-btn active" data-range="ALL">ALL</button>
+      </div>
+
+      <div class="range-slider">
+        <div class="double-range">
+          <div class="track"></div>
+          <input type="range" id="timeRangeStart" min="0" max="100" value="0" />
+          <input type="range" id="timeRangeEnd" min="0" max="100" value="100" />
+        </div>
       </div>
 
       <div class="chart-container" id="portfolio-chart-container">
@@ -675,7 +852,14 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
       const portfolioValues = rawChartData.map(item => item.portfolio);
       const benchmarkValues = rawChartData.map(item => item.benchmark);
 
-      // Create gradients
+      // Store original data
+      const originalData = {
+        dates: [...dates],
+        portfolio: [...portfolioValues],
+        benchmark: [...benchmarkValues]
+      };
+
+      // Create gradients and chart instance as before
       const portfolioGradient = portfolioCtx.createLinearGradient(0, 0, 0, 400);
       portfolioGradient.addColorStop(0, 'rgba(26, 117, 159, 0.3)');
       portfolioGradient.addColorStop(1, 'rgba(26, 117, 159, 0)');
@@ -684,7 +868,7 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
       benchmarkGradient.addColorStop(0, 'rgba(220, 53, 69, 0.2)');
       benchmarkGradient.addColorStop(1, 'rgba(220, 53, 69, 0)');
 
-      new Chart(portfolioCtx, {
+      const portfolioChart = new Chart(portfolioCtx, {
         type: 'line',
         data: {
           labels: dates,
@@ -795,6 +979,228 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
           }
         }
       });
+
+      // Range slider functionality
+      const startRange = document.getElementById('timeRangeStart');
+      const endRange = document.getElementById('timeRangeEnd');
+      const track = document.querySelector('.track');
+
+      function updateTrack() {
+        const start = parseFloat(startRange.value);
+        const end = parseFloat(endRange.value);
+        track.style.left = start + '%';
+        track.style.right = (100 - end) + '%';
+      }
+
+      function updateChartData() {
+        const startPercent = parseFloat(startRange.value);
+        const endPercent = parseFloat(endRange.value);
+
+        // Calculate indices but ensure startIndex is at least 1
+        let startIndex = Math.max(1, Math.floor(originalData.dates.length * startPercent / 100));
+        let endIndex = Math.ceil(originalData.dates.length * endPercent / 100);
+
+        // Get the data slice
+        const dateSlice = originalData.dates.slice(startIndex, endIndex);
+        const portfolioSlice = originalData.portfolio.slice(startIndex, endIndex);
+        const benchmarkSlice = originalData.benchmark.slice(startIndex, endIndex);
+
+        // Normalize to 100 at start
+        const portfolioStart = portfolioSlice[0];
+        const benchmarkStart = benchmarkSlice[0];
+        const normalizedPortfolio = portfolioSlice.map(val => val / portfolioStart);
+        const normalizedBenchmark = benchmarkSlice.map(val => val / benchmarkStart);
+
+        // Update chart data
+        portfolioChart.data.labels = dateSlice;
+        portfolioChart.data.datasets[0].data = normalizedPortfolio;
+        portfolioChart.data.datasets[1].data = normalizedBenchmark;
+        portfolioChart.update();
+
+        // Update MDD chart if it exists
+        if (window.mddChart) {
+          const mddPortfolioSlice = rawChartData.map(d => d.portfolio_mdd).slice(startIndex, endIndex);
+          const mddBenchmarkSlice = rawChartData.map(d => d.benchmark_mdd).slice(startIndex, endIndex);
+
+          window.mddChart.data.labels = dateSlice;
+          window.mddChart.data.datasets[0].data = mddPortfolioSlice;
+          window.mddChart.data.datasets[1].data = mddBenchmarkSlice;
+          window.mddChart.update();
+        }
+
+        // Update Cash Balance chart if it exists
+        if (window.cashChart && cashBalanceData.length > 0) {
+          const startDate = new Date(dateSlice[0]);
+          const endDate = new Date(dateSlice[dateSlice.length - 1]);
+
+          const filteredCash = cashBalanceData.filter(item => {
+            const itemDate = new Date(item.date);
+            return itemDate >= startDate && itemDate <= endDate;
+          });
+
+          if (filteredCash.length > 0) {
+            window.cashChart.data.labels = filteredCash.map(item => item.date);
+            window.cashChart.data.datasets[0].data = filteredCash.map(item => item.value);
+            window.cashChart.update();
+          }
+        }
+
+        // Update Transaction Cost chart if it exists
+        if (window.transactionChart && transactionCostData.length > 0) {
+          const startDate = new Date(dateSlice[0]);
+          const endDate = new Date(dateSlice[dateSlice.length - 1]);
+
+          const filteredTx = transactionCostData.filter(item => {
+            const itemDate = new Date(item.date);
+            return itemDate >= startDate && itemDate <= endDate;
+          });
+
+          if (filteredTx.length > 0) {
+            window.transactionChart.data.labels = filteredTx.map(item => item.date);
+            window.transactionChart.data.datasets[0].data = filteredTx.map(item => item.value);
+            window.transactionChart.update();
+          }
+        }
+      }
+
+      // Event listeners for range inputs
+      startRange.addEventListener('input', function() {
+        const end = parseFloat(endRange.value);
+        const start = parseFloat(this.value);
+
+        // Prevent start from going below 1%
+        if (start < 1) {
+          this.value = 1;
+        }
+
+        updateTrack();
+        updateChartData();
+        updateTooltips();
+      });
+
+      endRange.addEventListener('input', function() {
+        updateTrack();
+        updateChartData();
+        updateTooltips();
+      });
+
+      // Add tooltips for showing date values
+      const startTooltip = document.createElement('div');
+      startTooltip.className = 'date-tooltip';
+
+      const endTooltip = document.createElement('div');
+      endTooltip.className = 'date-tooltip';
+
+      document.querySelector('.double-range').appendChild(startTooltip);
+      document.querySelector('.double-range').appendChild(endTooltip);
+
+      function updateTooltips() {
+        const startPercent = parseFloat(startRange.value);
+        const endPercent = parseFloat(endRange.value);
+
+        const startIndex = Math.max(1, Math.floor(originalData.dates.length * startPercent / 100));
+        const endIndex = Math.ceil(originalData.dates.length * endPercent / 100);
+
+        // Update tooltip content
+        startTooltip.textContent = originalData.dates[startIndex];
+        endTooltip.textContent = originalData.dates[endIndex - 1];
+
+        // Get the container width
+        const sliderContainer = document.querySelector('.double-range');
+        const containerWidth = sliderContainer.offsetWidth;
+
+        // Position tooltips
+        const startPos = (startPercent / 100) * containerWidth;
+        const endPos = (endPercent / 100) * containerWidth;
+
+        // Remove any previous position classes
+        startTooltip.classList.remove('left-edge', 'right-edge');
+        endTooltip.classList.remove('left-edge', 'right-edge');
+
+        // Set default transform and position
+        startTooltip.style.transform = 'translateX(-50%)';
+        endTooltip.style.transform = 'translateX(-50%)';
+
+        startTooltip.style.left = startPos + 'px';
+        endTooltip.style.left = endPos + 'px';
+
+        // Handle edge cases
+        const margin = 30; // Safety margin in pixels
+
+        // Start tooltip edge handling
+        if (startPos < margin) {
+          startTooltip.classList.add('left-edge');
+        } else if (startPos > containerWidth - margin) {
+          startTooltip.classList.add('right-edge');
+        }
+
+        // End tooltip edge handling
+        if (endPos < margin) {
+          endTooltip.classList.add('left-edge');
+        } else if (endPos > containerWidth - margin) {
+          endTooltip.classList.add('right-edge');
+        }
+      }
+
+      // Show tooltips on hover
+      startRange.addEventListener('mouseover', function() {
+        startTooltip.classList.add('visible');
+      });
+
+      startRange.addEventListener('mouseout', function() {
+        startTooltip.classList.remove('visible');
+      });
+
+      endRange.addEventListener('mouseover', function() {
+        endTooltip.classList.add('visible');
+      });
+
+      endRange.addEventListener('mouseout', function() {
+        endTooltip.classList.remove('visible');
+      });
+
+      // Initialize tooltips
+      updateTooltips();
+
+      // Range selector buttons functionality
+      const rangeBtns = document.querySelectorAll('.range-btn');
+      rangeBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+          rangeBtns.forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+
+          const range = this.dataset.range;
+
+          switch(range) {
+            case '1M':
+              startRange.value = Math.max(1, 100 - (30 / originalData.dates.length * 100));
+              endRange.value = 100;
+              break;
+            case '3M':
+              startRange.value = Math.max(1, 100 - (90 / originalData.dates.length * 100));
+              endRange.value = 100;
+              break;
+            case '6M':
+              startRange.value = Math.max(1, 100 - (180 / originalData.dates.length * 100));
+              endRange.value = 100;
+              break;
+            case '1Y':
+              startRange.value = Math.max(1, 100 - (365 / originalData.dates.length * 100));
+              endRange.value = 100;
+              break;
+            case 'ALL':
+              startRange.value = 1;
+              endRange.value = 100;
+              break;
+          }
+
+          updateTrack();
+          updateChartData();
+        });
+      });
+
+      // Initialize with ALL view
+      document.querySelector('.range-btn[data-range="ALL"]').click();
     } else {
       console.error("No chart data available or invalid format");
       document.getElementById('portfolioChart').innerHTML = 'No portfolio value data available';
@@ -811,7 +1217,7 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
       cashGradient.addColorStop(0, 'rgba(40, 167, 69, 0.3)');
       cashGradient.addColorStop(1, 'rgba(40, 167, 69, 0)');
 
-      new Chart(cashCtx, {
+      window.cashChart = new Chart(cashCtx, {
         type: 'line',
         data: {
           labels: cashDates,
@@ -913,7 +1319,7 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
       const txDates = transactionCostData.map(item => item.date);
       const txValues = transactionCostData.map(item => item.value);
 
-      new Chart(txCtx, {
+      window.transactionChart = new Chart(txCtx, {
         type: 'bar',
         data: {
           labels: txDates,
@@ -970,7 +1376,7 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
       const portfolioMDD = rawChartData.map(item => item.portfolio_mdd);
       const benchmarkMDD = rawChartData.map(item => item.benchmark_mdd);
 
-      new Chart(mddCtx, {
+      window.mddChart = new Chart(mddCtx, {
         type: 'line',
         data: {
           labels: dates,
