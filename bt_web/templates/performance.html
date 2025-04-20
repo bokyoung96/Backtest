@@ -1040,7 +1040,8 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
               pointHoverBackgroundColor: '#1a759f',
               pointHoverBorderColor: '#fff',
               pointHoverBorderWidth: 2,
-              order: 1
+              order: 1,
+              yAxisID: 'y'
             },
             {
               label: 'Benchmark',
@@ -1055,7 +1056,18 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
               pointHoverBackgroundColor: '#dc3545',
               pointHoverBorderColor: '#fff',
               pointHoverBorderWidth: 2,
-              order: 2
+              order: 2,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Excess Return',
+              data: portfolioValues.map((val, idx) => (val - benchmarkValues[idx]) * 100), // 초과 수익률 계산 (percentage point 단위)
+              borderColor: 'rgba(75, 192, 192, 1)',
+              backgroundColor: 'rgba(75, 192, 192, 0.5)',
+              borderWidth: 1,
+              type: 'bar',
+              order: 3,
+              yAxisID: 'y1'
             }
           ]
         },
@@ -1095,6 +1107,14 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
               displayColors: true,
               callbacks: {
                 label: function(context) {
+                  if (context.dataset.label === 'Excess Return') {
+                    const value = context.parsed.y;
+                    // NaN이거나 Infinity인 경우 0으로 처리
+                    if (isNaN(value) || !isFinite(value)) {
+                      return `${context.dataset.label}: 0.00%p`;
+                    }
+                    return `${context.dataset.label}: ${value.toFixed(2)}%p`;
+                  }
                   return `${context.dataset.label}: ${(context.parsed.y * 100).toFixed(2)}%`;
                 }
               }
@@ -1113,6 +1133,7 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
               }
             },
             y: {
+              position: 'left',
               grid: {
                 color: 'rgba(0, 0, 0, 0.05)'
               },
@@ -1123,6 +1144,24 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
                 callback: function(value) {
                   return (value * 100).toFixed(1) + '%';
                 }
+              }
+            },
+            y1: {
+              position: 'right',
+              grid: {
+                drawOnChartArea: false,
+              },
+              ticks: {
+                font: {
+                  size: 11
+                },
+                callback: function(value) {
+                  return value.toFixed(1) + '%p';
+                }
+              },
+              title: {
+                display: true,
+                text: 'Excess Return (%p)'
               }
             }
           },
@@ -1173,13 +1212,39 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
         // Normalize to 100 at start - 첫 날을 100%로 설정
         const portfolioStart = portfolioSlice[0] || 1; // 0으로 나누기 방지
         const benchmarkStart = benchmarkSlice[0] || 1; // 0으로 나누기 방지
-        const normalizedPortfolio = portfolioSlice.map(val => val / portfolioStart);
-        const normalizedBenchmark = benchmarkSlice.map(val => val / benchmarkStart);
+
+        // Check if we have NaN values and handle them
+        let normalizedPortfolio = portfolioSlice.map(val => val / portfolioStart);
+        let normalizedBenchmark = benchmarkSlice.map(val => val / benchmarkStart);
+
+        // Handle any NaN values at initialization point for both datasets
+        if (normalizedPortfolio.length > 0 && (isNaN(normalizedPortfolio[0]) || !isFinite(normalizedPortfolio[0]))) {
+          normalizedPortfolio[0] = 1.0; // Set to 1.0 which represents 100% at start
+        }
+
+        if (normalizedBenchmark.length > 0 && (isNaN(normalizedBenchmark[0]) || !isFinite(normalizedBenchmark[0]))) {
+          normalizedBenchmark[0] = 1.0; // Set to 1.0 which represents 100% at start
+        }
+
+        // 초과 수익률 계산 (percentage point 단위)
+        const excessReturn = [];
+        for (let idx = 0; idx < normalizedPortfolio.length; idx++) {
+          const portfolioVal = normalizedPortfolio[idx];
+          const benchmarkVal = normalizedBenchmark[idx];
+
+          // Handle NaN or infinite values for this specific calculation
+          if (isNaN(portfolioVal) || !isFinite(portfolioVal) || isNaN(benchmarkVal) || !isFinite(benchmarkVal)) {
+            excessReturn.push(idx === 0 ? 0 : excessReturn[idx-1] || 0); // Use previous value or 0
+          } else {
+            excessReturn.push((portfolioVal - benchmarkVal) * 100);
+          }
+        }
 
         // Update chart data
         portfolioChart.data.labels = dateSlice;
         portfolioChart.data.datasets[0].data = normalizedPortfolio;
         portfolioChart.data.datasets[1].data = normalizedBenchmark;
+        portfolioChart.data.datasets[2].data = excessReturn;
         portfolioChart.update();
 
         // Update MDD chart if it exists
