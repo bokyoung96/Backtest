@@ -211,14 +211,11 @@ def methodology_performance(name):
 
         method_type = getattr(MethodologyType, name)
 
-        # Get strategy description
         strategy_description = STRATEGY_DESCRIPTIONS.get(name, {})
 
-        # Get transaction cost type
         transaction_cost_type = request.args.get(
             'transaction_cost_type', 'custom')
 
-        # Set transaction costs based on type
         if transaction_cost_type == 'korea':
             korea_cost = KoreaTransactionCost()
             buy_commission = korea_cost.buy_commission
@@ -233,7 +230,7 @@ def methodology_performance(name):
             slippage = no_cost.slippage
             sell_tax = no_cost.sell_tax
             cash_rate = no_cost.cash_rate
-        else:  # custom
+        else:
             buy_commission = float(request.args.get('buy_commission', 0.0002))
             sell_commission = float(
                 request.args.get('sell_commission', 0.0002))
