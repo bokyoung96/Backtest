@@ -1150,18 +1150,29 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
         const startPercent = parseFloat(startRange.value);
         const endPercent = parseFloat(endRange.value);
 
-        // Calculate indices but ensure startIndex is at least 1
-        let startIndex = Math.max(1, Math.floor(originalData.dates.length * startPercent / 100));
+        // Calculate indices without forcing startIndex to be at least 1
+        let startIndex = Math.floor(originalData.dates.length * startPercent / 100);
         let endIndex = Math.ceil(originalData.dates.length * endPercent / 100);
 
-        // Get the data slice
+        // 전체 기간 선택 시 하루만 뒤로 해서 시작 (동일하게 적용)
+        if (startIndex === 0 && startPercent === 0) {
+          startIndex = 0; // 첫 날부터 시작하도록 0으로 변경
+        }
+
+        // Get the data slice - 비어 있지 않은지 확인
         const dateSlice = originalData.dates.slice(startIndex, endIndex);
         const portfolioSlice = originalData.portfolio.slice(startIndex, endIndex);
         const benchmarkSlice = originalData.benchmark.slice(startIndex, endIndex);
 
-        // Normalize to 100 at start
-        const portfolioStart = portfolioSlice[0];
-        const benchmarkStart = benchmarkSlice[0];
+        // 데이터가 비어있는지 확인
+        if (dateSlice.length === 0 || portfolioSlice.length === 0 || benchmarkSlice.length === 0) {
+          console.error("Empty data slice detected");
+          return; // 데이터가 비어있으면 함수 종료
+        }
+
+        // Normalize to 100 at start - 첫 날을 100%로 설정
+        const portfolioStart = portfolioSlice[0] || 1; // 0으로 나누기 방지
+        const benchmarkStart = benchmarkSlice[0] || 1; // 0으로 나누기 방지
         const normalizedPortfolio = portfolioSlice.map(val => val / portfolioStart);
         const normalizedBenchmark = benchmarkSlice.map(val => val / benchmarkStart);
 
@@ -1176,42 +1187,73 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
           const mddPortfolioSlice = rawChartData.map(d => d.portfolio_mdd).slice(startIndex, endIndex);
           const mddBenchmarkSlice = rawChartData.map(d => d.benchmark_mdd).slice(startIndex, endIndex);
 
-          window.mddChart.data.labels = dateSlice;
-          window.mddChart.data.datasets[0].data = mddPortfolioSlice;
-          window.mddChart.data.datasets[1].data = mddBenchmarkSlice;
+          if (mddPortfolioSlice.length === 0 || mddBenchmarkSlice.length === 0) {
+            // Fallback to full dataset if slice is empty
+            window.mddChart.data.labels = originalData.dates;
+            window.mddChart.data.datasets[0].data = rawChartData.map(d => d.portfolio_mdd);
+            window.mddChart.data.datasets[1].data = rawChartData.map(d => d.benchmark_mdd);
+          } else {
+            window.mddChart.data.labels = dateSlice;
+            window.mddChart.data.datasets[0].data = mddPortfolioSlice;
+            window.mddChart.data.datasets[1].data = mddBenchmarkSlice;
+          }
           window.mddChart.update();
         }
 
         // Update Cash Balance chart if it exists
         if (window.cashChart && cashBalanceData.length > 0) {
-          const startDate = new Date(dateSlice[0]);
-          const endDate = new Date(dateSlice[dateSlice.length - 1]);
+          if (dateSlice.length === 0) {
+            // If date slice is empty, show all cash balance data
+            window.cashChart.data.labels = cashBalanceData.map(item => item.date);
+            window.cashChart.data.datasets[0].data = cashBalanceData.map(item => item.value);
+            window.cashChart.update();
+          } else {
+            // Otherwise filter by the date range
+            const startDate = new Date(dateSlice[0]);
+            const endDate = new Date(dateSlice[dateSlice.length - 1]);
 
-          const filteredCash = cashBalanceData.filter(item => {
-            const itemDate = new Date(item.date);
-            return itemDate >= startDate && itemDate <= endDate;
-          });
+            const filteredCash = cashBalanceData.filter(item => {
+              const itemDate = new Date(item.date);
+              return itemDate >= startDate && itemDate <= endDate;
+            });
 
-          if (filteredCash.length > 0) {
-            window.cashChart.data.labels = filteredCash.map(item => item.date);
-            window.cashChart.data.datasets[0].data = filteredCash.map(item => item.value);
+            if (filteredCash.length > 0) {
+              window.cashChart.data.labels = filteredCash.map(item => item.date);
+              window.cashChart.data.datasets[0].data = filteredCash.map(item => item.value);
+            } else {
+              // Fallback to all data if filtered result is empty
+              window.cashChart.data.labels = cashBalanceData.map(item => item.date);
+              window.cashChart.data.datasets[0].data = cashBalanceData.map(item => item.value);
+            }
             window.cashChart.update();
           }
         }
 
         // Update Transaction Cost chart if it exists
         if (window.transactionChart && transactionCostData.length > 0) {
-          const startDate = new Date(dateSlice[0]);
-          const endDate = new Date(dateSlice[dateSlice.length - 1]);
+          if (dateSlice.length === 0) {
+            // If date slice is empty, show all transaction data
+            window.transactionChart.data.labels = transactionCostData.map(item => item.date);
+            window.transactionChart.data.datasets[0].data = transactionCostData.map(item => item.value);
+            window.transactionChart.update();
+          } else {
+            // Otherwise filter by the date range
+            const startDate = new Date(dateSlice[0]);
+            const endDate = new Date(dateSlice[dateSlice.length - 1]);
 
-          const filteredTx = transactionCostData.filter(item => {
-            const itemDate = new Date(item.date);
-            return itemDate >= startDate && itemDate <= endDate;
-          });
+            const filteredTx = transactionCostData.filter(item => {
+              const itemDate = new Date(item.date);
+              return itemDate >= startDate && itemDate <= endDate;
+            });
 
-          if (filteredTx.length > 0) {
-            window.transactionChart.data.labels = filteredTx.map(item => item.date);
-            window.transactionChart.data.datasets[0].data = filteredTx.map(item => item.value);
+            if (filteredTx.length > 0) {
+              window.transactionChart.data.labels = filteredTx.map(item => item.date);
+              window.transactionChart.data.datasets[0].data = filteredTx.map(item => item.value);
+            } else {
+              // Fallback to all data if filtered result is empty
+              window.transactionChart.data.labels = transactionCostData.map(item => item.date);
+              window.transactionChart.data.datasets[0].data = transactionCostData.map(item => item.value);
+            }
             window.transactionChart.update();
           }
         }
@@ -1222,11 +1264,7 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
         const end = parseFloat(endRange.value);
         const start = parseFloat(this.value);
 
-        // Prevent start from going below 1%
-        if (start < 1) {
-          this.value = 1;
-        }
-
+        // Remove the constraint that prevents start from going below 1%
         updateTrack();
         updateChartData();
         updateTooltips();
@@ -1252,12 +1290,25 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
         const startPercent = parseFloat(startRange.value);
         const endPercent = parseFloat(endRange.value);
 
-        const startIndex = Math.max(1, Math.floor(originalData.dates.length * startPercent / 100));
-        const endIndex = Math.ceil(originalData.dates.length * endPercent / 100);
+        // Calculate startIndex the same way as in updateChartData
+        let startIndex = Math.floor(originalData.dates.length * startPercent / 100);
+        let endIndex = Math.ceil(originalData.dates.length * endPercent / 100);
 
-        // Update tooltip content
-        startTooltip.textContent = originalData.dates[startIndex];
-        endTooltip.textContent = originalData.dates[endIndex - 1];
+        // 전체 기간 선택 시 하루만 뒤로 해서 시작 (동일하게 적용)
+        if (startIndex === 0 && startPercent === 0) {
+          startIndex = 0; // 첫 날부터 시작하도록 0으로 변경
+        }
+
+        // Update tooltip content - handle index checking to prevent errors
+        if (startIndex < originalData.dates.length) {
+          startTooltip.textContent = originalData.dates[startIndex];
+        }
+
+        if (endIndex > 0 && endIndex <= originalData.dates.length) {
+          endTooltip.textContent = originalData.dates[endIndex - 1];
+        } else if (originalData.dates.length > 0) {
+          endTooltip.textContent = originalData.dates[originalData.dates.length - 1];
+        }
 
         // Get the container width
         const sliderContainer = document.querySelector('.double-range');
@@ -1327,23 +1378,23 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
 
           switch(range) {
             case '1M':
-              startRange.value = Math.max(1, 100 - (30 / originalData.dates.length * 100));
+              startRange.value = 100 - (30 / originalData.dates.length * 100);
               endRange.value = 100;
               break;
             case '3M':
-              startRange.value = Math.max(1, 100 - (90 / originalData.dates.length * 100));
+              startRange.value = 100 - (90 / originalData.dates.length * 100);
               endRange.value = 100;
               break;
             case '6M':
-              startRange.value = Math.max(1, 100 - (180 / originalData.dates.length * 100));
+              startRange.value = 100 - (180 / originalData.dates.length * 100);
               endRange.value = 100;
               break;
             case '1Y':
-              startRange.value = Math.max(1, 100 - (365 / originalData.dates.length * 100));
+              startRange.value = 100 - (365 / originalData.dates.length * 100);
               endRange.value = 100;
               break;
             case 'ALL':
-              startRange.value = 1;
+              startRange.value = 0;
               endRange.value = 100;
               break;
           }
