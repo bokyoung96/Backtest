@@ -200,6 +200,49 @@
       transform: rotate(360deg);
     }
   }
+
+  .btn-check:checked + .btn-outline-primary {
+    background-color: #1a759f;
+    border-color: #1a759f;
+    color: white;
+  }
+
+  .btn-check + .btn-outline-primary {
+    border-color: #1a759f;
+    color: #1a759f;
+  }
+
+  .btn-check + .btn-outline-primary:hover {
+    background-color: rgba(26, 117, 159, 0.1);
+  }
+
+  .cost-type-selector {
+    display: flex;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    background: #f8f9fa;
+  }
+
+  .cost-type-btn {
+    border: none;
+    background: transparent;
+    padding: 8px 15px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #495057;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .cost-type-btn:hover {
+    background-color: rgba(26, 117, 159, 0.1);
+  }
+
+  .cost-type-btn.active {
+    background-color: #1a759f;
+    color: white;
+  }
 </style>
 {% endblock %} {% block content %}
 <div class="container">
@@ -298,11 +341,41 @@
 
       <h5 class="mt-4 mb-3">Transaction Costs</h5>
       <div class="row param-row">
+        <div class="col-md-12 mb-3">
+          <div class="d-flex align-items-center">
+            <label class="form-label me-3 mb-0">Cost Type:</label>
+            <div class="cost-type-selector">
+              <button
+                type="button"
+                class="cost-type-btn active"
+                data-cost-type="custom"
+              >
+                Custom
+              </button>
+              <button
+                type="button"
+                class="cost-type-btn"
+                data-cost-type="korea"
+              >
+                Korea
+              </button>
+              <button type="button" class="cost-type-btn" data-cost-type="none">
+                None
+              </button>
+              <input
+                type="hidden"
+                name="transaction_cost_type"
+                id="transactionCostType"
+                value="custom"
+              />
+            </div>
+          </div>
+        </div>
         <div class="col-md-3">
           <label for="buy_commission" class="form-label">Buy Commission</label>
           <input
             type="number"
-            class="form-control"
+            class="form-control transaction-cost-field"
             id="buy_commission"
             name="buy_commission"
             value="0.0002"
@@ -316,7 +389,7 @@
           >
           <input
             type="number"
-            class="form-control"
+            class="form-control transaction-cost-field"
             id="sell_commission"
             name="sell_commission"
             value="0.0002"
@@ -328,7 +401,7 @@
           <label for="slippage" class="form-label">Slippage</label>
           <input
             type="number"
-            class="form-control"
+            class="form-control transaction-cost-field"
             id="slippage"
             name="slippage"
             value="0.0001"
@@ -340,7 +413,7 @@
           <label for="sell_tax" class="form-label">Sell Tax</label>
           <input
             type="number"
-            class="form-control"
+            class="form-control transaction-cost-field"
             id="sell_tax"
             name="sell_tax"
             value="0.003"
@@ -491,10 +564,18 @@
       url += `&end_date=${endDate}`;
       url += `&initial_investment=${initialInvestment}`;
       url += `&multiplier=${multiplier}`;
+
+      // Get the transaction cost type
+      const costType = document.getElementById("transactionCostType").value;
+      url += `&transaction_cost_type=${costType}`;
+
+      // Add cost parameters regardless of cost type
+      // The backend will use the appropriate values based on the cost type
       url += `&buy_commission=${buyCommission}`;
       url += `&sell_commission=${sellCommission}`;
       url += `&slippage=${slippage}`;
       url += `&sell_tax=${sellTax}`;
+
       url += `&cash_rate=${cashRate}`;
       url += `&rebal_timing=${rebalTiming}`;
       url += `&quantile=${quantile}`;
@@ -521,6 +602,68 @@
     if (loadingOverlay) {
       loadingOverlay.style.display = "none";
     }
+
+    // Transaction cost type presets
+    const costPresets = {
+      custom: {
+        buy_commission: 0.0002,
+        sell_commission: 0.0002,
+        slippage: 0.0001,
+        sell_tax: 0.003,
+      },
+      korea: {
+        buy_commission: 0.0002,
+        sell_commission: 0.0002,
+        slippage: 0.0005,
+        sell_tax: 0.0015,
+      },
+      none: {
+        buy_commission: 0.0,
+        sell_commission: 0.0,
+        slippage: 0.0,
+        sell_tax: 0.0,
+      },
+    };
+
+    // Handle cost type button clicks
+    document.querySelectorAll(".cost-type-btn").forEach((btn) => {
+      btn.addEventListener("click", function () {
+        // Update active button
+        document
+          .querySelectorAll(".cost-type-btn")
+          .forEach((b) => b.classList.remove("active"));
+        this.classList.add("active");
+
+        // Get selected cost type
+        const costType = this.getAttribute("data-cost-type");
+        document.getElementById("transactionCostType").value = costType;
+
+        // Update input fields with preset values
+        if (costType !== "custom") {
+          const preset = costPresets[costType];
+          Object.keys(preset).forEach((field) => {
+            document.getElementById(field).value = preset[field];
+          });
+
+          // Disable fields for non-custom types
+          document
+            .querySelectorAll(".transaction-cost-field")
+            .forEach((field) => {
+              field.readOnly = costType !== "custom";
+              field.style.backgroundColor =
+                costType !== "custom" ? "#f8f9fa" : "";
+            });
+        } else {
+          // Enable fields for custom type
+          document
+            .querySelectorAll(".transaction-cost-field")
+            .forEach((field) => {
+              field.readOnly = false;
+              field.style.backgroundColor = "";
+            });
+        }
+      });
+    });
   });
 </script>
 {% endblock %}
