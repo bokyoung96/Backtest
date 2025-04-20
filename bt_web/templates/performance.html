@@ -652,64 +652,6 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
   </div>
 
   <div class="card">
-    <div class="card-header">Transaction Costs</div>
-    <div class="table-responsive">
-      <table class="table card-table">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Total Buy Value</th>
-            <th>Total Sell Value</th>
-            <th>Shares Bought</th>
-            <th>Shares Sold</th>
-            <th>Total Buy Cost</th>
-            <th>Total Sell Cost</th>
-            <th>Total Transaction Cost</th>
-            <th>Total NAV</th>
-            <th>Transaction Cost (bp)</th>
-            <th>Error</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for tx in data.transactions %}
-          <tr>
-            <td>{{ tx.date }}</td>
-            <td class="number-cell">
-              {{ "{:,.0f}".format(tx.get('buy_value', 0)) }}
-            </td>
-            <td class="number-cell">
-              {{ "{:,.0f}".format(tx.get('sell_value', 0)) }}
-            </td>
-            <td class="number-cell">
-              {{ "{:,.2f}".format(tx.get('shares_bought', 0)) }}
-            </td>
-            <td class="number-cell">
-              {{ "{:,.2f}".format(tx.get('shares_sold', 0)) }}
-            </td>
-            <td class="number-cell">
-              {{ "{:,.0f}".format(tx.get('buy_cost', 0)) }}
-            </td>
-            <td class="number-cell">
-              {{ "{:,.0f}".format(tx.get('sell_cost', 0)) }}
-            </td>
-            <td class="number-cell">
-              {{ "{:,.0f}".format(tx.get('total_cost', 0)) }}
-            </td>
-            <td class="number-cell">
-              {{ "{:,.0f}".format(tx.get('nav', 0)) }}
-            </td>
-            <td class="number-cell">
-              {{ "{:,.2f}".format(tx.get('cost_bp', 0)) }}
-            </td>
-            <td>{{ tx.get('error', 'None') }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="card">
     <div class="card-header">Detailed Analysis</div>
 
     <ul class="nav nav-tabs" id="detailTabs" role="tablist">
