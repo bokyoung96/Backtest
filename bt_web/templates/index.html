@@ -233,7 +233,9 @@
           >
             <option value="" selected disabled>Select a methodology</option>
             {% for methodology in methodologies %}
-            <option value="{{ methodology }}">{{ methodology }}</option>
+            <option value="{{ methodology.name }}">
+              {{ methodology.name }}
+            </option>
             {% endfor %}
           </select>
         </div>
@@ -430,13 +432,13 @@
     <div class="methodology-grid">
       {% for methodology in methodologies %}
       <a
-        href="{{ url_for('methodology_performance', name=methodology) }}"
+        href="{{ url_for('methodology_performance', name=methodology.name) }}"
         class="methodology-card"
       >
-        <div class="card-header">{{ methodology }}</div>
+        <div class="card-header">{{ methodology.name }}</div>
         <div class="card-body">
           <div class="methodology-description">
-            Click to view detailed performance analysis
+            {{ methodology.short_description }}
           </div>
         </div>
         <div class="card-footer">

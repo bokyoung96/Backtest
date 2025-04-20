@@ -21,23 +21,23 @@ def memory_mgr(func):
 class AnalysisInteractive:
     def __init__(self, analysis):
         self._analysis = analysis
-        
+
     @memory_mgr
     def get_performance(self):
         return self._analysis.perf_msre.performance_table()
-    
+
     @memory_mgr
     def get_analysis_attr(self, attr_name):
         if hasattr(self._analysis, attr_name):
             return getattr(self._analysis, attr_name)
         return None
-    
+
     def clear_cache(self):
         for attr in dir(self._analysis):
             if attr.startswith('_cache_'):
                 delattr(self._analysis, attr)
         gc.collect()
-    
+
     def __getattr__(self, name):
         return getattr(self._analysis, name)
 
@@ -70,8 +70,8 @@ if __name__ == "__main__":
     ]
 
     mgr = AnalysisManager(config, methodology_types)
-    
+
     selected_methodology = MethodologyType.DataValidation
     raw_analysis = mgr.run(selected_methodology)
-    
+
     analysis = AnalysisInteractive(raw_analysis)

@@ -134,6 +134,25 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
 
   .tab-content {
     padding: 1.5rem;
+    position: relative;
+    min-height: 300px;
+  }
+
+  .tab-pane {
+    width: 100%;
+  }
+
+  .tab-pane.fade {
+    opacity: 0;
+    transition: opacity 0.15s linear;
+  }
+
+  .tab-pane.fade.show {
+    opacity: 1;
+  }
+
+  .holdings-content {
+    width: 100%;
   }
 
   .backtest-parameters {
@@ -402,6 +421,21 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
     opacity: 1;
     visibility: visible;
   }
+
+  /* Specific styles for sector contents */
+  .sector-content {
+    display: none;
+  }
+
+  .sector-content:first-of-type {
+    display: block;
+  }
+
+  /* Ensure chart containers have adequate height */
+  #sectorTimeSeriesChart {
+    height: 400px;
+    min-height: 300px;
+  }
 </style>
 {% endblock %} {% block content %}
 <div class="container">
@@ -423,6 +457,11 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
         <i class="fas fa-file-excel me-2"></i>Download All Data
       </button>
     </div>
+    {% if data.description %}
+    <div class="mt-3 strategy-description">
+      <p class="mb-0">{{ data.description }}</p>
+    </div>
+    {% endif %}
   </div>
 
   <div class="backtest-parameters">
@@ -624,6 +663,20 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
           <i class="fas fa-chart-pie me-1"></i> Holdings
         </button>
       </li>
+      <li class="nav-item" role="presentation">
+        <button
+          class="nav-link"
+          id="sectors-tab"
+          data-bs-toggle="tab"
+          data-bs-target="#sectors"
+          type="button"
+          role="tab"
+          aria-controls="sectors"
+          aria-selected="false"
+        >
+          <i class="fas fa-industry me-1"></i> Sectors
+        </button>
+      </li>
     </ul>
 
     <div class="tab-content" id="detailTabsContent">
@@ -753,51 +806,40 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
         <div
           class="holdings-content"
           id="holdings-{{ date }}"
-          style="{% if not loop.first %}display: none;{% endif %}"
+          style="display: {% if loop.first %}block{% else %}none{% endif %};"
         >
           <h6 class="mb-3">Holdings on {{ date }}</h6>
-          <div class="row">
-            <div class="col-md-8">
-              <div class="table-scroll">
-                <table class="table table-hover card-table">
-                  <thead>
-                    <tr>
-                      <th>Symbol</th>
-                      <th>Quantity</th>
-                      <th>Price</th>
-                      <th>Market Value</th>
-                      <th>Weight</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for holding in holdings_list %}
-                    <tr>
-                      <td class="code-style">
-                        {{ holding.get('ticker', holding.get('index', '')) }}
-                      </td>
-                      <td class="number-cell">
-                        {{ "{:,.2f}".format(holding.get('quantity',
-                        holding.get('shares', 0))) }}
-                      </td>
-                      <td class="number-cell">
-                        {{ "{:,.0f}".format(holding.get('price', 0)) }}
-                      </td>
-                      <td class="number-cell">
-                        {{ "{:,.0f}".format(holding.get('market_value',
-                        holding.get('value', 0))) }}
-                      </td>
-                      <td class="number-cell">
-                        {{ "{:.2%}".format(holding.get('weight', 0)) }}
-                      </td>
-                    </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <canvas id="holdingsPieChart-{{ date }}"></canvas>
-            </div>
+          <div class="table-scroll table-responsive">
+            <table class="table table-hover table-sm card-table">
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th class="text-end">Quantity</th>
+                  <th class="text-end">Price</th>
+                  <th class="text-end">Market Value</th>
+                  <th class="text-end">Weight (%)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for holding in holdings_list %}
+                <tr>
+                  <td>{{ holding.ticker }}</td>
+                  <td class="text-end code-style">
+                    {{ '{:,.0f}'.format(holding.quantity|float) }}
+                  </td>
+                  <td class="text-end code-style">
+                    {{ '{:,.0f}'.format(holding.price|float) }}
+                  </td>
+                  <td class="text-end code-style">
+                    {{ '{:,.0f}'.format(holding.market_value|float) }}
+                  </td>
+                  <td class="text-end code-style">
+                    {{ '{:.2f}'.format(holding.weight|float * 100) }}%
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
           </div>
         </div>
         {% endfor %} {% else %}
@@ -806,11 +848,89 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
         </div>
         {% endif %}
       </div>
+
+      <div
+        class="tab-pane fade"
+        id="sectors"
+        role="tabpanel"
+        aria-labelledby="sectors-tab"
+      >
+        {% if data.sectors %}
+        <!-- Sector Date Tabs -->
+        <div class="holdings-date-tabs" id="sectorDates">
+          {% for date in data.sectors.keys() %}
+          <div
+            class="holdings-date-tab {% if loop.first %}active{% endif %}"
+            data-date="{{ date }}"
+          >
+            {{ date }}
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- Sector Snapshot Content -->
+        {% for date, sectors_list in data.sectors.items() %}
+        <div
+          class="holdings-content sector-content"
+          id="sectors-{{ date }}"
+          style="display: {% if loop.first %}block{% else %}none{% endif %};"
+        >
+          <h6 class="mb-3">Sector Allocation on {{ date }}</h6>
+          <div class="table-scroll">
+            <table class="table table-hover table-sm card-table">
+              <thead>
+                <tr>
+                  <th>Sector</th>
+                  <th class="text-end">Weight (%)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for sector in sectors_list %}
+                <tr>
+                  <td>{{ sector.sector }}</td>
+                  <td class="text-end code-style">
+                    {{ '{:.2f}'.format(sector.weight|float) }}%
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="row mt-4">
+            <div class="col-md-6 offset-md-3">
+              <h6 class="text-center mb-3">Sector Allocation</h6>
+              <canvas id="sectorPieChart-{{ date }}"></canvas>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+
+        <!-- Sector Time Series Chart -->
+        <div class="mt-5">
+          <h5 class="mb-4">Sector Allocation Over Time</h5>
+          <div class="chart-container">
+            <canvas id="sectorTimeSeriesChart"></canvas>
+          </div>
+        </div>
+        {% else %}
+        <p class="text-muted">No sector data available</p>
+        {% endif %}
+      </div>
     </div>
   </div>
 </div>
 {% endblock %} {% block scripts %}
 <script>
+  function generateChartColors(count) {
+    const colors = [];
+    // Generate a variety of colors in HSL format for better visual distinction
+    for (let i = 0; i < count; i++) {
+      const hue = (i * 360 / count) % 360; // Space colors evenly around the color wheel
+      colors.push(`hsl(${hue}, 70%, 60%)`);
+    }
+    return colors;
+  }
+
   document.addEventListener('DOMContentLoaded', function() {
     // Performance Chart - Portfolio Value
     const portfolioCtx = document.getElementById('portfolioChart').getContext('2d');
@@ -1486,61 +1606,50 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
 
     // Create holdings pie charts
     {% for date, holdings_list in data.holdings.items() %}
-    const holdingsPieCtx{{ loop.index }} = document.getElementById('holdingsPieChart-{{ date }}').getContext('2d');
-    const holdingsData{{ loop.index }} = {{ holdings_list | tojson }};
+    // Skip pie chart creation for holdings
+    {% endfor %}
 
-    if (holdingsData{{ loop.index }}.length > 0) {
-      const labels = holdingsData{{ loop.index }}.map(item => item.ticker || item.index);
-      const weights = holdingsData{{ loop.index }}.map(item => item.weight);
+    // Create sector pie charts
+    {% for date, sectors_list in data.sectors.items() %}
+    const sectorPieCtx{{ loop.index }} = document.getElementById('sectorPieChart-{{ date }}').getContext('2d');
+    const sectorData{{ loop.index }} = {{ sectors_list | tojson }};
 
-      // Generate blue gradient colors
-      const colors = weights.map((_, i) => {
-        // Base blue color: #1a759f (primary blue from your theme)
-        const baseColor = [26, 117, 159];  // RGB values of #1a759f
-        const lightenAmount = (i / (weights.length - 1)) * 60;  // Gradually lighten up to 60%
+    if (sectorData{{ loop.index }}.length > 0) {
+      const sectorLabels = sectorData{{ loop.index }}.map(item => item.sector);
+      const sectorWeights = sectorData{{ loop.index }}.map(item => item.weight);
 
-        const r = Math.min(255, baseColor[0] + lightenAmount);
-        const g = Math.min(255, baseColor[1] + lightenAmount);
-        const b = Math.min(255, baseColor[2] + lightenAmount);
+      // Generate colors for each sector
+      const sectorColors = generateChartColors(sectorLabels.length);
 
-        return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
-      });
-
-      new Chart(holdingsPieCtx{{ loop.index }}, {
+      new Chart(sectorPieCtx{{ loop.index }}, {
         type: 'pie',
         data: {
-          labels: labels,
+          labels: sectorLabels,
           datasets: [{
-            data: weights,
-            backgroundColor: colors,
+            data: sectorWeights,
+            backgroundColor: sectorColors,
             borderWidth: 1,
-            borderColor: '#fff'
+            borderColor: '#ffffff'
           }]
         },
         options: {
           responsive: true,
-          maintainAspectRatio: false,
           plugins: {
-            title: {
-              display: true,
-              text: 'Portfolio Weights',
-              font: {
-                size: 14,
-                weight: 'bold'
-              }
-            },
             legend: {
-              position: 'right',
+              position: 'bottom',
               labels: {
+                boxWidth: 12,
                 font: {
                   size: 11
-                }
+                },
+                padding: 10
               }
             },
             tooltip: {
               callbacks: {
                 label: function(context) {
-                  return `${context.label}: ${(context.parsed * 100).toFixed(2)}%`;
+                  const value = context.raw;
+                  return `${context.label}: ${value.toFixed(2)}%`;
                 }
               }
             }
@@ -1549,6 +1658,148 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
       });
     }
     {% endfor %}
+
+    // Create sector time series chart (stacked area chart)
+    {% if data.sectors %}
+    const createSectorTimeSeriesChart = () => {
+      const sectorTsCtx = document.getElementById('sectorTimeSeriesChart').getContext('2d');
+
+      // Get all unique dates and sectors
+      const allDates = [];
+      const allSectors = new Set();
+      {% for date, sectors_list in data.sectors.items() %}
+      allDates.push('{{ date }}');
+      {% for sector in sectors_list %}
+      allSectors.add('{{ sector.sector }}');
+      {% endfor %}
+      {% endfor %}
+
+      const sortedDates = [...allDates].sort();
+      const uniqueSectors = Array.from(allSectors);
+
+      // Create dataset for each sector
+      const datasets = [];
+      const sectorColors = generateChartColors(uniqueSectors.length);
+
+      // Create a mapping of sector data for easier access
+      const sectorDataMap = {};
+      {% for date, sectors_list in data.sectors.items() %}
+      sectorDataMap['{{ date }}'] = {};
+      {% for sector in sectors_list %}
+      sectorDataMap['{{ date }}']['{{ sector.sector }}'] = {{ sector.weight }};
+      {% endfor %}
+      {% endfor %}
+
+      uniqueSectors.forEach((sector, index) => {
+        const data = [];
+
+        sortedDates.forEach(date => {
+          // Find the sector weight for this date
+          const weight = sectorDataMap[date] && sectorDataMap[date][sector] ? sectorDataMap[date][sector] : 0;
+          data.push(weight);
+        });
+
+        datasets.push({
+          label: sector,
+          data: data,
+          backgroundColor: sectorColors[index],
+          borderColor: sectorColors[index],
+          borderWidth: 1,
+          fill: true
+        });
+      });
+
+      new Chart(sectorTsCtx, {
+        type: 'line',
+        data: {
+          labels: sortedDates,
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: 'Date'
+              }
+            },
+            y: {
+              stacked: true,
+              title: {
+                display: true,
+                text: 'Weight (%)'
+              },
+              min: 0,
+              max: 100
+            }
+          },
+          plugins: {
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+              callbacks: {
+                label: function(context) {
+                  const value = context.raw;
+                  return `${context.dataset.label}: ${value.toFixed(2)}%`;
+                }
+              }
+            },
+            legend: {
+              position: 'bottom',
+              labels: {
+                boxWidth: 12,
+                font: {
+                  size: 11
+                },
+                padding: 8
+              }
+            }
+          },
+          elements: {
+            line: {
+              tension: 0.3
+            },
+            point: {
+              radius: 0
+            }
+          },
+          interaction: {
+            mode: 'nearest',
+            axis: 'x',
+            intersect: false
+          }
+        }
+      });
+    };
+
+    // Call the function to create the sector time series chart
+    createSectorTimeSeriesChart();
+    {% endif %}
+
+    // Sector date selector
+    const sectorDateButtons = document.querySelectorAll('#sectorDates .holdings-date-tab');
+    sectorDateButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        // Deactivate all buttons
+        sectorDateButtons.forEach(btn => btn.classList.remove('active'));
+
+        // Activate selected button
+        button.classList.add('active');
+
+        // Get the selected date
+        const date = button.getAttribute('data-date');
+
+        // Hide all sector content
+        document.querySelectorAll('.sector-content').forEach(content => {
+          content.style.display = 'none';
+        });
+
+        // Show the selected sector content
+        document.getElementById(`sectors-${date}`).style.display = 'block';
+      });
+    });
 
     // Chart tabs
     const chartTabs = document.querySelectorAll('.chart-tab');
@@ -1560,7 +1811,10 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
     };
 
     chartTabs.forEach(tab => {
-      tab.addEventListener('click', function() {
+      tab.addEventListener('click', function(e) {
+        e.preventDefault();
+        console.log('Chart tab clicked:', this.dataset.chart);
+
         // Remove active class from all tabs
         chartTabs.forEach(t => t.classList.remove('active'));
 
@@ -1569,37 +1823,64 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
 
         // Hide all chart containers
         Object.values(chartContainers).forEach(container => {
-          container.style.display = 'none';
+          if (container) {
+            container.style.display = 'none';
+          }
         });
 
         // Show the selected chart container
         const chartType = this.dataset.chart;
-        chartContainers[chartType].style.display = 'block';
+        if (chartContainers[chartType]) {
+          chartContainers[chartType].style.display = 'block';
+        }
       });
     });
 
     // Holdings date selector
-    const dateButtons = document.querySelectorAll('.holdings-date-tab');
+    const dateButtons = document.querySelectorAll('#holdingsDates .holdings-date-tab');
     if (dateButtons.length > 0) {
       dateButtons.forEach(button => {
         button.addEventListener('click', function() {
-          // Deactivate all buttons
-          dateButtons.forEach(btn => btn.classList.remove('active'));
+          // Get all holdings date buttons
+          const holdingButtons = document.querySelectorAll('#holdingsDates .holdings-date-tab');
+
+          // Deactivate all holdings buttons
+          holdingButtons.forEach(btn => btn.classList.remove('active'));
 
           // Activate clicked button
           this.classList.add('active');
 
+          // Get the selected date
+          const date = this.getAttribute('data-date');
+
           // Hide all holdings content
-          document.querySelectorAll('.holdings-content').forEach(content => {
+          document.querySelectorAll('#holdings .holdings-content').forEach(content => {
             content.style.display = 'none';
           });
 
           // Show the selected holdings content
-          const date = this.dataset.date;
-          document.getElementById(`holdings-${date}`).style.display = 'block';
+          const holdingsContent = document.getElementById(`holdings-${date}`);
+          if (holdingsContent) {
+            holdingsContent.style.display = 'block';
+          }
         });
       });
     }
+
+    // Fix tab layout issues
+    document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tab => {
+      tab.addEventListener('shown.bs.tab', function (e) {
+        // Force a small browser reflow to fix layout issues
+        const tabContent = document.querySelector(this.getAttribute('data-bs-target'));
+        if (tabContent) {
+          // Update the layout by toggling a harmless CSS property
+          tabContent.style.transform = 'translateZ(0)';
+          setTimeout(() => {
+            tabContent.style.transform = '';
+          }, 0);
+        }
+      });
+    });
   });
 
   function downloadAllData() {
