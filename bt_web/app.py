@@ -296,12 +296,29 @@ def methodology_performance(name):
                         bm_mdd = calculate_drawdown_series(
                             analysis.perf_msre.bm_ret)
 
+                        # 첫 해의 데이터도 포함되도록 수정
+                        pf_ret_with_first = analysis.perf_msre.pf_ret.copy()
+                        bm_ret_with_first = analysis.perf_msre.bm_ret.copy()
+
+                        # 첫 날의 수익률을 0으로 설정하여 시작점 표시
+                        first_date = pf_ret_with_first.index[0]
+                        pf_ret_with_first.loc[first_date] = 0
+                        bm_ret_with_first.loc[first_date] = 0
+
+                        # 수정된 데이터로 누적 수익률 계산
+                        pf_cumret = (1 + pf_ret_with_first).cumprod()
+                        bm_cumret = (1 + bm_ret_with_first).cumprod()
+
                         chart_data = pd.DataFrame({
                             'date': pf_cumret.index,
                             'portfolio': pf_cumret.iloc[:, 0],
                             'benchmark': bm_cumret.iloc[:, 0],
                             'portfolio_mdd': pf_mdd.iloc[:, 0],
-                            'benchmark_mdd': bm_mdd.iloc[:, 0]
+                            'benchmark_mdd': bm_mdd.iloc[:, 0],
+                            # 일간 수익률 추가
+                            'portfolio_returns': pf_ret_with_first.iloc[:, 0],
+                            # 일간 수익률 추가
+                            'benchmark_returns': bm_ret_with_first.iloc[:, 0]
                         }).reset_index(drop=True)
 
                         chart_data['date'] = chart_data['date'].dt.strftime(
