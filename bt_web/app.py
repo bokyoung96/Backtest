@@ -13,6 +13,7 @@ from __version__ import __title__, __version__
 from bt.main import PortfolioAnalysis
 from bt.methodologies import *
 from bt.methodology_type import MethodologyType, methodology_clses
+from bt.cost import KoreaTransactionCost, NoTransactionCost
 
 matplotlib.use('Agg')
 plt.show = lambda: None
@@ -213,6 +214,33 @@ def methodology_performance(name):
         # Get strategy description
         strategy_description = STRATEGY_DESCRIPTIONS.get(name, {})
 
+        # Get transaction cost type
+        transaction_cost_type = request.args.get(
+            'transaction_cost_type', 'custom')
+
+        # Set transaction costs based on type
+        if transaction_cost_type == 'korea':
+            korea_cost = KoreaTransactionCost()
+            buy_commission = korea_cost.buy_commission
+            sell_commission = korea_cost.sell_commission
+            slippage = korea_cost.slippage
+            sell_tax = korea_cost.sell_tax
+            cash_rate = korea_cost.cash_rate
+        elif transaction_cost_type == 'none':
+            no_cost = NoTransactionCost()
+            buy_commission = no_cost.buy_commission
+            sell_commission = no_cost.sell_commission
+            slippage = no_cost.slippage
+            sell_tax = no_cost.sell_tax
+            cash_rate = no_cost.cash_rate
+        else:  # custom
+            buy_commission = float(request.args.get('buy_commission', 0.0002))
+            sell_commission = float(
+                request.args.get('sell_commission', 0.0002))
+            slippage = float(request.args.get('slippage', 0.0001))
+            sell_tax = float(request.args.get('sell_tax', 0.003))
+            cash_rate = float(request.args.get('cash_rate', 0.02))
+
         params = {
             'init_invest': float(request.args.get('initial_investment', 100000000)),
             'mkt': request.args.get('market', 'KOSPI200'),
@@ -220,11 +248,11 @@ def methodology_performance(name):
             'end_date': request.args.get('end_date', '20250331'),
             'methodology_type': method_type,
             'multiplier': request.args.get('multiplier', 'Y'),
-            'buy_commission': float(request.args.get('buy_commission', 0.0002)),
-            'sell_commission': float(request.args.get('sell_commission', 0.0002)),
-            'slippage': float(request.args.get('slippage', 0.0001)),
-            'sell_tax': float(request.args.get('sell_tax', 0.003)),
-            'cash_rate': float(request.args.get('cash_rate', 0.02)),
+            'buy_commission': buy_commission,
+            'sell_commission': sell_commission,
+            'slippage': slippage,
+            'sell_tax': sell_tax,
+            'cash_rate': cash_rate,
             'rebal_timing': request.args.get('rebal_timing', 'next'),
             'freq': request.args.get('freq', 'monthly'),
             'quantile': int(request.args.get('quantile', 5)),
