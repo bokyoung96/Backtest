@@ -1,16 +1,18 @@
-from __version__ import __title__, __version__
-from bt.methodology_type import MethodologyType, methodology_clses
-from bt.main import PortfolioAnalysis
-from bt.methodologies import *
-from bt.loader import DataLoader
+import json
+import traceback
+import os
+from datetime import datetime
+from io import BytesIO
+
+import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
-import matplotlib
 from flask import Flask, render_template, request, send_file
-from io import BytesIO
-import json
-from datetime import datetime
-import numpy as np
+
+from __version__ import __title__, __version__
+from bt.main import PortfolioAnalysis
+from bt.methodologies import *
+from bt.methodology_type import MethodologyType, methodology_clses
 
 matplotlib.use('Agg')
 plt.show = lambda: None
@@ -19,6 +21,15 @@ plt.show = lambda: None
 app = Flask(__name__)
 
 analysis_results = {}
+
+STRATEGY_DESCRIPTIONS_FILE = os.path.join(
+    os.path.dirname(__file__), 'strategy_descriptions.json')
+try:
+    with open(STRATEGY_DESCRIPTIONS_FILE, 'r') as f:
+        STRATEGY_DESCRIPTIONS = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError) as e:
+    print(f"Error loading strategy descriptions: {e}")
+    STRATEGY_DESCRIPTIONS = {}
 
 
 def get_performance_metrics(performance_table):
@@ -88,22 +99,80 @@ def get_date_format(date_key):
     return str(date_key)
 
 
+def get_wics_sector_name(sector_code):
+    """Convert WICS sector code to English sector name."""
+    wics_mapping = {
+        'G10': 'Energy',
+        'G15': 'Materials',
+        'G20': 'Industrials',
+        'G25': 'Consumer Discretionary',
+        'G30': 'Consumer Staples',
+        'G35': 'Health Care',
+        'G40': 'Financials',
+        'G45': 'Information Technology',
+        'G50': 'Communication Services',
+        'G55': 'Utilities',
+        'G60': 'Real Estate'
+    }
+
+    if isinstance(sector_code, (int, float)):
+        code_str = f"G{int(sector_code)}"
+    else:
+        code_str = str(sector_code).upper()
+        if not code_str.startswith('G'):
+            code_str = f"G{code_str}"
+
+    return wics_mapping.get(code_str, sector_code)
+
+
 @app.route('/')
 def index():
     """Displays the list of available methodologies."""
     try:
         methodologies = [
             method_type.name for method_type in methodology_clses.keys()]
+
+        methodology_info = []
+        for method_name in methodologies:
+            info = {
+                'name': method_name,
+                'short_description': STRATEGY_DESCRIPTIONS.get(method_name, {}).get('short_description', 'No description available')
+            }
+            methodology_info.append(info)
+
     except Exception as e:
         print(f"Error fetching methodologies: {e}")
-        methodologies = []
-    return render_template('index.html', methodologies=methodologies)
+        methodology_info = []
+    return render_template('index.html', methodologies=methodology_info)
 
 
 @app.route('/about')
 def about():
     """Displays the About page."""
     return render_template('about.html')
+
+
+@app.route('/methodologies')
+def methodologies():
+    """Displays detailed information about all available methodologies."""
+    try:
+        methodology_names = [
+            method_type.name for method_type in methodology_clses.keys()]
+
+        detailed_methodologies = []
+        for method_name in methodology_names:
+            info = {
+                'name': method_name,
+                'short_description': STRATEGY_DESCRIPTIONS.get(method_name, {}).get('short_description', 'No description available'),
+                'long_description': STRATEGY_DESCRIPTIONS.get(method_name, {}).get('long_description', 'No detailed description available')
+            }
+            detailed_methodologies.append(info)
+
+    except Exception as e:
+        print(f"Error fetching methodology details: {e}")
+        detailed_methodologies = []
+
+    return render_template('methodologies.html', methodologies=detailed_methodologies)
 
 
 @app.route('/help')
@@ -140,6 +209,9 @@ def methodology_performance(name):
             return render_template('error.html', message=f"Methodology '{name}' not found or not implemented.")
 
         method_type = getattr(MethodologyType, name)
+
+        # Get strategy description
+        strategy_description = STRATEGY_DESCRIPTIONS.get(name, {})
 
         params = {
             'init_invest': float(request.args.get('initial_investment', 100000000)),
@@ -178,7 +250,8 @@ def methodology_performance(name):
                     "sharpe_ratio": round(perf_data.get('Sharpe Ratio', 0), 2),
                     "volatility": f"{perf_data.get('Standard Deviation (%)', 0):.2f}%",
                     "max_drawdown": f"{perf_data.get('Maximum Drawdown (%)', 0):.2f}%",
-                    "win_rate": f"{perf_data.get('Win Rate (%)', 0):.2f}%"
+                    "win_rate": f"{perf_data.get('Win Rate (%)', 0):.2f}%",
+                    "description": strategy_description.get('long_description', '')
                 }
 
                 if analysis.portfolio_constructor and analysis.portfolio_constructor.results is not None:
@@ -237,7 +310,6 @@ def methodology_performance(name):
                     transactions_data = transactions_df.to_dict('records')
                 except Exception as e:
                     print(f"Error processing transaction costs: {e}")
-                    import traceback
                     traceback.print_exc()
                     transactions_data = None
 
@@ -248,7 +320,6 @@ def methodology_performance(name):
                     cash_data = cash_df.to_dict('records')
                 except Exception as e:
                     print(f"Error processing cash balance: {e}")
-                    import traceback
                     traceback.print_exc()
                     cash_data = None
 
@@ -264,27 +335,46 @@ def methodology_performance(name):
                     except Exception as e:
                         print(
                             f"Error processing holdings for date {date_key}: {e}")
-                        import traceback
                         traceback.print_exc()
                         continue
+
+            sector_data = {}
+            if hasattr(analysis, 'sector_snapshot') and analysis.sector_snapshot:
+                try:
+                    for date_key, sectors in analysis.sector_snapshot.items():
+                        date_str = get_date_format(date_key)
+
+                        sectors_with_names = {}
+                        for sector_code, weight in sectors.items():
+                            sector_name = get_wics_sector_name(sector_code)
+                            sectors_with_names[sector_name] = weight
+
+                        sector_df = pd.DataFrame({
+                            'sector': list(sectors_with_names.keys()),
+                            'weight': list(sectors_with_names.values())
+                        }).sort_values('weight', ascending=False)
+
+                        sector_data[date_str] = sector_df.to_dict('records')
+                except Exception as e:
+                    print(f"Error processing sector snapshot: {e}")
+                    traceback.print_exc()
 
             performance_data = {
                 **perf_metrics,
                 'transactions': transactions_data,
                 'cash_balance': cash_data,
                 'holdings': holdings_data,
+                'sectors': sector_data,
                 'params': params
             }
 
         except Exception as e:
             print(f"Error running backtest for {name}: {e}")
-            import traceback
             traceback.print_exc()
             return render_template('error.html', message=f"Error running backtest for {name}: {e}")
 
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
-        import traceback
         traceback.print_exc()
         return render_template('error.html', message=f"An unexpected error occurred: {e}")
     return render_template('performance.html', data=performance_data)
@@ -401,6 +491,67 @@ def download_data(name):
                             writer, sheet_name=sheet_name, index=True)
                         has_data = True
 
+            if hasattr(analysis, 'sector_snapshot') and analysis.sector_snapshot:
+                sector_snapshot = analysis.sector_snapshot
+                for date_key, sectors in sector_snapshot.items():
+                    if sectors:
+                        date_str = get_date_format(date_key)
+                        sheet_name = f"s_{date_str}"
+                        if len(sheet_name) > 31:
+                            sheet_name = sheet_name[:31]
+
+                        sectors_with_names = {}
+                        for sector_code, weight in sectors.items():
+                            sector_name = get_wics_sector_name(sector_code)
+                            sectors_with_names[sector_name] = weight
+
+                        sector_df = pd.DataFrame({
+                            'sector': list(sectors_with_names.keys()),
+                            'weight': list(sectors_with_names.values())
+                        }).sort_values('weight', ascending=False)
+                        sector_df['date'] = date_str
+                        sector_df = sector_df[['date', 'sector', 'weight']]
+                        sector_df.to_excel(
+                            writer, sheet_name=sheet_name, index=False)
+                        has_data = True
+
+                try:
+                    all_sectors = set()
+                    all_dates = []
+
+                    for date_key, sectors in sector_snapshot.items():
+                        if sectors:
+                            date_str = get_date_format(date_key)
+                            all_dates.append(date_str)
+                            for sector_code in sectors.keys():
+                                all_sectors.add(
+                                    get_wics_sector_name(sector_code))
+
+                    if all_dates and all_sectors:
+                        sector_ts_data = []
+
+                        for date_key, sectors in sector_snapshot.items():
+                            date_str = get_date_format(date_key)
+                            row_data = {'date': date_str}
+
+                            for sector in all_sectors:
+                                row_data[sector] = 0
+
+                            for sector_code, weight in sectors.items():
+                                sector_name = get_wics_sector_name(sector_code)
+                                row_data[sector_name] = weight
+
+                            sector_ts_data.append(row_data)
+
+                        sector_ts_df = pd.DataFrame(
+                            sector_ts_data).sort_values('date')
+                        sector_ts_df.to_excel(
+                            writer, sheet_name='sector_timeseries', index=False)
+                        has_data = True
+                except Exception as e:
+                    print(f"Error creating sector time series: {e}")
+                    traceback.print_exc()
+
             params = getattr(analysis, 'params', None)
             if params:
                 params_dict = {}
@@ -430,7 +581,6 @@ def download_data(name):
 
     except Exception as e:
         print(f"Error generating Excel file: {e}")
-        import traceback
         traceback.print_exc()
         return {"error": str(e)}, 500
 

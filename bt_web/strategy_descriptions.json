@@ -1,0 +1,14 @@
+{
+  "DataValidation": {
+    "short_description": "A simple data validation strategy checking for extreme values and anomalies.",
+    "long_description": "This strategy examines the historical price data to identify and filter out extreme values, missing data points, and other anomalies that might adversely affect backtest results. It's primarily used for data quality assurance rather than investment decision making."
+  },
+  "ERRChg": {
+    "short_description": "Earnings Revision Ratio Change strategy based on analyst estimate revisions.",
+    "long_description": "The ERRChg strategy tracks changes in analyst earnings revisions over time. It identifies stocks where more analysts are increasing their earnings estimates than decreasing them, which may indicate improving company fundamentals. This strategy tends to perform well in markets that reward fundamentally improving companies."
+  },
+  "OPRChg": {
+    "short_description": "Operating Profit Estimates Change strategy focused on operating profit trends.",
+    "long_description": "This strategy focuses on changes in analyst projections for operating profits. It identifies companies where analysts are increasingly optimistic about future operating profits, which often signals improving business operations and potential future stock price appreciation."
+  }
+}
