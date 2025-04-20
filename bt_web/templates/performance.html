@@ -603,6 +603,7 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
         <div class="chart-tab" data-chart="mdd">Maximum Drawdown</div>
         <div class="chart-tab" data-chart="cash">Cash Balance</div>
         <div class="chart-tab" data-chart="transaction">Transaction Costs</div>
+        <div class="chart-tab" data-chart="yearly">Yearly Returns</div>
       </div>
 
       <div class="range-selector">
@@ -647,6 +648,14 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
         style="display: none"
       >
         <canvas id="transactionChart"></canvas>
+      </div>
+
+      <div
+        class="chart-container"
+        id="yearly-chart-container"
+        style="display: none"
+      >
+        <canvas id="yearlyChart"></canvas>
       </div>
     </div>
   </div>
@@ -1754,6 +1763,189 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
       });
     }
 
+    // Create yearly returns chart
+    const yearlyCtx = document.getElementById('yearlyChart').getContext('2d');
+    if (Array.isArray(rawChartData) && rawChartData.length > 0) {
+      // 연도별 수익률 계산
+      const yearlyData = {};
+
+      // 첫 번째 데이터의 연도를 시작 연도로 설정
+      const startYear = new Date(rawChartData[0].date).getFullYear();
+
+      // 각 연도의 첫 날과 마지막 날 데이터를 저장
+      rawChartData.forEach((item, index) => {
+        const year = new Date(item.date).getFullYear();
+        if (!yearlyData[year]) {
+          yearlyData[year] = {
+            firstDay: {
+              portfolio: item.portfolio,
+              benchmark: item.benchmark,
+              date: item.date
+            },
+            lastDay: {
+              portfolio: item.portfolio,
+              benchmark: item.benchmark,
+              date: item.date
+            }
+          };
+        } else {
+          yearlyData[year].lastDay = {
+            portfolio: item.portfolio,
+            benchmark: item.benchmark,
+            date: item.date
+          };
+        }
+      });
+
+      // 각 연도의 수익률 계산
+      const years = Object.keys(yearlyData).sort();
+      const portfolioReturns = [];
+      const benchmarkReturns = [];
+      const excessReturns = [];
+
+      years.forEach(year => {
+        const yearData = yearlyData[year];
+
+        // 첫 해의 경우 시작점을 1로 설정하여 수익률 계산
+        const isFirstYear = year === startYear.toString();
+        const portfolioStart = isFirstYear ? 1 : yearData.firstDay.portfolio;
+        const portfolioEnd = yearData.lastDay.portfolio;
+        const benchmarkStart = isFirstYear ? 1 : yearData.firstDay.benchmark;
+        const benchmarkEnd = yearData.lastDay.benchmark;
+
+        const portfolioReturn = ((portfolioEnd / portfolioStart) - 1) * 100;
+        const benchmarkReturn = ((benchmarkEnd / benchmarkStart) - 1) * 100;
+        const excessReturn = portfolioReturn - benchmarkReturn;
+
+        portfolioReturns.push(portfolioReturn);
+        benchmarkReturns.push(benchmarkReturn);
+        excessReturns.push(excessReturn);
+      });
+
+      window.yearlyChart = new Chart(yearlyCtx, {
+        type: 'bar',
+        data: {
+          labels: years,
+          datasets: [
+            {
+              label: 'Portfolio Returns',
+              data: portfolioReturns,
+              backgroundColor: 'rgba(26, 117, 159, 0.7)',
+              borderColor: '#1a759f',
+              borderWidth: 1,
+              order: 2,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Benchmark Returns',
+              data: benchmarkReturns,
+              backgroundColor: 'rgba(220, 53, 69, 0.7)',
+              borderColor: '#dc3545',
+              borderWidth: 1,
+              order: 3,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Excess Returns',
+              data: excessReturns,
+              backgroundColor: 'rgba(75, 192, 192, 0.7)',
+              borderColor: 'rgba(75, 192, 192, 1)',
+              borderWidth: 1,
+              type: 'line',
+              order: 1,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Yearly Returns',
+              padding: 20,
+              font: {
+                size: 16,
+                weight: 'bold'
+              }
+            },
+            legend: {
+              display: true,
+              position: 'top',
+              labels: {
+                usePointStyle: true,
+                padding: 15,
+                font: {
+                  size: 12
+                }
+              }
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              titleColor: '#000',
+              bodyColor: '#000',
+              borderColor: '#ddd',
+              borderWidth: 1,
+              padding: 10,
+              callbacks: {
+                label: function(context) {
+                  const value = context.raw;
+                  if (context.dataset.label === 'Excess Returns') {
+                    return `${context.dataset.label}: ${value.toFixed(2)}%p`;
+                  }
+                  return `${context.dataset.label}: ${value.toFixed(2)}%`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: {
+                display: false
+              },
+              title: {
+                display: true,
+                text: 'Year'
+              }
+            },
+            y: {
+              position: 'left',
+              grid: {
+                color: 'rgba(0, 0, 0, 0.05)'
+              },
+              title: {
+                display: true,
+                text: 'Return (%)'
+              },
+              ticks: {
+                callback: function(value) {
+                  return value.toFixed(1) + '%';
+                }
+              }
+            },
+            y1: {
+              position: 'right',
+              grid: {
+                drawOnChartArea: false
+              },
+              title: {
+                display: true,
+                text: 'Excess Return (%p)'
+              },
+              ticks: {
+                callback: function(value) {
+                  return value.toFixed(1) + '%p';
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
     // Create holdings pie charts
     {% for date, holdings_list in data.holdings.items() %}
     // Skip pie chart creation for holdings
@@ -1957,7 +2149,8 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
       'portfolio': document.getElementById('portfolio-chart-container'),
       'mdd': document.getElementById('mdd-chart-container'),
       'cash': document.getElementById('cash-chart-container'),
-      'transaction': document.getElementById('transaction-chart-container')
+      'transaction': document.getElementById('transaction-chart-container'),
+      'yearly': document.getElementById('yearly-chart-container')
     };
 
     chartTabs.forEach(tab => {

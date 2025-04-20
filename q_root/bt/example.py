@@ -66,12 +66,13 @@ config = {
 if __name__ == "__main__":
     methodology_types = [
         MethodologyType.DataValidation,
-        MethodologyType.ERRChg
+        MethodologyType.ERRChg,
+        MethodologyType.OPRChg,
     ]
 
     mgr = AnalysisManager(config, methodology_types)
 
-    selected_methodology = MethodologyType.DataValidation
+    selected_methodology = MethodologyType.OPRChg
     raw_analysis = mgr.run(selected_methodology)
 
     analysis = AnalysisInteractive(raw_analysis)
