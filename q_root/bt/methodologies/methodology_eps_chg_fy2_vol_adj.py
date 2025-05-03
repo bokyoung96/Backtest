@@ -8,7 +8,7 @@ from bt.loader import DataLoader
 from bt.methodology import Methodology
 
 
-class MethodologyERRChg(Methodology):
+class MethodologyEPSChgFY2VolAdj(Methodology):
     def __init__(self,
                  mkt: str = 'KOSPI200',
                  start_date: str = '20110101',
@@ -27,14 +27,12 @@ class MethodologyERRChg(Methodology):
 
         self.load_data()
         self.load_const()
-        self.load_sector()
 
     def load_data(self) -> Dict[str, pd.DataFrame]:
         data_names = ['price_adj',
                       'mktcap_float',
-                      'err_1m',
-                      'err_2m',
-                      'wics_sector_big']
+                      'eps_nfy2_e',
+                      'eps_nfy0']
         raw_data = Tools.get_data(mkt=self.mkt,
                                   data_names=data_names,
                                   loader_cls=DataLoader)
@@ -49,47 +47,34 @@ class MethodologyERRChg(Methodology):
                                           check_nan=True,
                                           fill_method='ffill_bfill')
 
-    def load_sector(self):
-        self.sector = Tools.get_data_align(const=self.data['wics_sector_big'],
-                                           prc=self.data['price_adj'],
-                                           check_nan=False,
-                                           fill_method='ffill_bfill')
-
     def get_raw_factor(self):
         try:
-            Tools.validation_df_size(self.data['err_1m'],
-                                     self.data['err_2m'])
+            eps_nfy2_e = self.data['eps_nfy2_e'].copy()
 
-            err_1m = self.data['err_1m'].copy()
-            err_2m = self.data['err_2m'].copy()
+            eps_nfy2_e = eps_nfy2_e.replace([None], np.nan)
 
-            raw_factor = pd.DataFrame(
-                index=err_1m.index, columns=err_1m.columns)
-            raw_factor = (err_1m + err_2m) / 2
-
-            mask_nan = err_1m.isna() | err_2m.isna()
-            raw_factor[mask_nan] = np.nan
-
-            orig_idx = raw_factor.index.copy()
+            orig_idx = eps_nfy2_e.index.copy()
             m_periods = pd.PeriodIndex(orig_idx, freq='M')
+
             m_data = {}
             for month in set(m_periods):
                 m_dates = orig_idx[m_periods == month]
                 last_date = m_dates[-1]
-                m_data[month] = raw_factor.loc[last_date].copy()
+                m_data[month] = eps_nfy2_e.loc[last_date].copy()
 
-            shifted_data = {}
-            for month in sorted(m_data.keys()):
-                prev_month = month - 1
-                if prev_month in m_data:
-                    shifted_data[month] = m_data[prev_month].copy()
+            month_ends = pd.Series(m_data).sort_index()
+            month_end_df = pd.DataFrame(
+                month_ends.values.tolist(), index=month_ends.index)
 
-            lagged_factor = pd.DataFrame(
-                index=orig_idx, columns=raw_factor.columns)
+            month_end_df = month_end_df.replace([None], np.nan)
+
+            pct_change_df = (month_end_df / month_end_df.shift(1).abs() - 1)
+
+            m_factor = pd.DataFrame(index=orig_idx, columns=eps_nfy2_e.columns)
             for date, period in zip(orig_idx, m_periods):
-                if period in shifted_data:
-                    lagged_factor.loc[date] = shifted_data[period]
-            return lagged_factor
+                if period in pct_change_df.index:
+                    m_factor.loc[date] = pct_change_df.loc[period]
+            return m_factor
 
         except ValueError as e:
             raise ValueError(f"Failed to create factor: {e}")
@@ -104,6 +89,8 @@ class MethodologyERRChg(Methodology):
                                     freq=self.freq)
         raw_factor = Tools.get_data_freq(df=self.get_raw_factor(),
                                          freq=self.freq)
+        vol_factor = Tools.get_data_freq(df=self.get_vol_adj(),
+                                         freq=self.freq)
 
         aligned_factor = Tools.get_data_align(
             const=raw_factor,
@@ -112,11 +99,51 @@ class MethodologyERRChg(Methodology):
             fill_method=None
         )
 
+        aligned_vol_factor = Tools.get_data_align(
+            const=vol_factor,
+            prc=const,
+            check_nan=False,
+            fill_method=None
+        )
+
         try:
             Tools.validation_df_size(const, aligned_factor)
-            return const, aligned_factor
+            Tools.validation_df_size(const, aligned_vol_factor)
+            res = aligned_factor / aligned_vol_factor
+            return const, res
         except ValueError as e:
             raise ValueError(f"Failed to match frequency: {e}")
+
+    def get_vol_adj(self):
+        eps_nfy0 = self.data['eps_nfy0'].copy()
+
+        annual_eps = eps_nfy0.groupby(eps_nfy0.index.year).last()
+        annual_changes = annual_eps / annual_eps.shift(1).abs() - 1
+
+        changes_array = np.stack(
+            [annual_changes.shift(i).values for i in range(3)], axis=-1)
+
+        vol = pd.DataFrame(
+            np.maximum(np.nanstd(changes_array, axis=-1), 1),
+            index=annual_eps.index,
+            columns=eps_nfy0.columns
+        )
+
+        vol_adj = pd.DataFrame(index=eps_nfy0.index, columns=eps_nfy0.columns)
+        for idx in eps_nfy0.index:
+            year = idx.year
+            month = idx.month
+            day = idx.day
+
+            if (month > 4) or (month == 4 and day >= 1):
+                if (year - 1) in vol.index:
+                    vol_adj.loc[idx] = vol.loc[year - 1].values
+
+            else:
+                if (year - 2) in vol.index:
+                    vol_adj.loc[idx] = vol.loc[year - 2].values
+
+        return vol_adj
 
     def get_quantile(self):
         const, raw_factor = self.get_pp_data()
@@ -170,7 +197,8 @@ class MethodologyERRChg(Methodology):
 
 
 if __name__ == "__main__":
-    m = MethodologyERRChg(mkt='KOSPI200',
-                          start_date='20110101',
-                          end_date='20250101',
-                          quantile=4)
+    m = MethodologyEPSChgFY2VolAdj(mkt='KOSPI200',
+                                   start_date='20110101',
+                                   end_date='20250101',
+                                   quantile=5,
+                                   quantile_position=[5])

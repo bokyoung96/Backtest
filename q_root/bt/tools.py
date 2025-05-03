@@ -66,9 +66,9 @@ class Tools:
             res = const.reindex(prc.index, method='bfill')
         else:
             res = const.reindex(prc.index)
-            
+
         res = res.reindex(columns=prc.columns)
-        
+
         if check_nan and res.isnull().values.any():
             raise ValueError("Unexpected NaN values found after alignment.")
         return res
@@ -105,8 +105,17 @@ class Tools:
             return pd.Series([np.nan] * len(row), index=row.index)
 
         try:
-            quantiles = pd.qcut(row, q=q, labels=False, duplicates='drop')
-            return pd.Series(quantiles, index=row.index).add(1)
+            # NOTE: When using qcut, the number of quantiles may be less than q if there are duplicate values
+            # quantiles = pd.qcut(row, q=q, labels=False, duplicates='drop')
+            # return pd.Series(quantiles, index=row.index).add(1)
+
+            valid = row.dropna()
+            n = len(valid)
+            rank = valid.rank(method='min', ascending=True)
+            quantiles = np.ceil(rank / n * q).astype(int)
+            res = pd.Series(np.nan, index=row.index)
+            res.loc[valid.index] = quantiles
+            return res
         except ValueError as e:
             return pd.Series([np.nan] * len(row), index=row.index)
 

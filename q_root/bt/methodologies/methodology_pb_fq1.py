@@ -8,16 +8,16 @@ from bt.loader import DataLoader
 from bt.methodology import Methodology
 
 
-class MethodologyERRChg(Methodology):
+class MethodologyPBFQ1SectorNeutral(Methodology):
     def __init__(self,
                  mkt: str = 'KOSPI200',
                  start_date: str = '20110101',
-                 end_date: str = '20241031',
+                 end_date: str = '20250331',
                  **kwargs):
         freq = kwargs.pop('freq', 'monthly')
         quantile = kwargs.pop('quantile', 10)
         quantile_position = kwargs.pop('quantile_position', [1])
-        weight_type = kwargs.pop('weight_type', 'mktcap_float')
+        weight_type = kwargs.pop('weight_type', 'ew')
         super().__init__(mkt, start_date, end_date, **kwargs)
 
         self.freq = freq
@@ -27,14 +27,13 @@ class MethodologyERRChg(Methodology):
 
         self.load_data()
         self.load_const()
-        self.load_sector()
 
     def load_data(self) -> Dict[str, pd.DataFrame]:
         data_names = ['price_adj',
                       'mktcap_float',
-                      'err_1m',
-                      'err_2m',
-                      'wics_sector_big']
+                      'mktcap',
+                      'equity_nfq1',
+                      'wics_sector_26']
         raw_data = Tools.get_data(mkt=self.mkt,
                                   data_names=data_names,
                                   loader_cls=DataLoader)
@@ -49,47 +48,17 @@ class MethodologyERRChg(Methodology):
                                           check_nan=True,
                                           fill_method='ffill_bfill')
 
-    def load_sector(self):
-        self.sector = Tools.get_data_align(const=self.data['wics_sector_big'],
-                                           prc=self.data['price_adj'],
-                                           check_nan=False,
-                                           fill_method='ffill_bfill')
-
     def get_raw_factor(self):
         try:
-            Tools.validation_df_size(self.data['err_1m'],
-                                     self.data['err_2m'])
+            equity_nfq1 = self.data['equity_nfq1'].copy()
+            mktcap = self.data['mktcap'].copy()
+            wics_sector = self.data['wics_sector_26'].copy()
 
-            err_1m = self.data['err_1m'].copy()
-            err_2m = self.data['err_2m'].copy()
-
-            raw_factor = pd.DataFrame(
-                index=err_1m.index, columns=err_1m.columns)
-            raw_factor = (err_1m + err_2m) / 2
-
-            mask_nan = err_1m.isna() | err_2m.isna()
-            raw_factor[mask_nan] = np.nan
-
-            orig_idx = raw_factor.index.copy()
-            m_periods = pd.PeriodIndex(orig_idx, freq='M')
-            m_data = {}
-            for month in set(m_periods):
-                m_dates = orig_idx[m_periods == month]
-                last_date = m_dates[-1]
-                m_data[month] = raw_factor.loc[last_date].copy()
-
-            shifted_data = {}
-            for month in sorted(m_data.keys()):
-                prev_month = month - 1
-                if prev_month in m_data:
-                    shifted_data[month] = m_data[prev_month].copy()
-
-            lagged_factor = pd.DataFrame(
-                index=orig_idx, columns=raw_factor.columns)
-            for date, period in zip(orig_idx, m_periods):
-                if period in shifted_data:
-                    lagged_factor.loc[date] = shifted_data[period]
-            return lagged_factor
+            # NOTE: PB = Equity NQ1 / Mktcap. Considering 5Q, reverse the order.
+            # NOTE: 상사, 자본재 sector will be removed. Can be modified.
+            factor = equity_nfq1.div(mktcap, axis=0)
+            factor[wics_sector == '상사,자본재'] = np.nan
+            return factor
 
         except ValueError as e:
             raise ValueError(f"Failed to create factor: {e}")
@@ -118,9 +87,49 @@ class MethodologyERRChg(Methodology):
         except ValueError as e:
             raise ValueError(f"Failed to match frequency: {e}")
 
-    def get_quantile(self):
+    def get_z_score(self):
         const, raw_factor = self.get_pp_data()
         factor = const.mul(raw_factor)
+        wics_sector = self.data['wics_sector_26'].copy()
+
+        wics_sector = Tools.get_data_freq(df=wics_sector,
+                                          freq=self.freq)
+        wics_sector = Tools.get_data_align(const=wics_sector,
+                                           prc=const,
+                                           check_nan=False,
+                                           fill_method=None)
+
+        z_score = pd.DataFrame(index=factor.index, columns=factor.columns)
+
+        for date in factor.index:
+            date_factor = factor.loc[date]
+            date_sector = wics_sector.loc[date]
+
+            valid_mask = ~date_factor.isna() & ~date_sector.isna()
+            date_factor = date_factor[valid_mask]
+            date_sector = date_sector[valid_mask]
+
+            for sector in date_sector.unique():
+                if pd.isna(sector):
+                    continue
+
+                sector_stocks = date_sector[date_sector == sector].index
+                sector_factors = date_factor[sector_stocks]
+
+                if len(sector_factors) <= 2:
+                    z_score.loc[date, sector_stocks] = 0
+                else:
+                    mean = sector_factors.mean()
+                    std = sector_factors.std(ddof=0)
+                    if std != 0:
+                        z_score.loc[date, sector_stocks] = (
+                            sector_factors - mean) / std
+                    else:
+                        z_score.loc[date, sector_stocks] = 0
+        return z_score
+
+    def get_quantile(self):
+        factor = self.get_z_score()
 
         percentile_ranks = pd.DataFrame(
             index=factor.index, columns=factor.columns)
@@ -170,7 +179,8 @@ class MethodologyERRChg(Methodology):
 
 
 if __name__ == "__main__":
-    m = MethodologyERRChg(mkt='KOSPI200',
-                          start_date='20110101',
-                          end_date='20250101',
-                          quantile=4)
+    m = MethodologyPBFQ1SectorNeutral(mkt='KOSPI200',
+                                      start_date='20110101',
+                                      end_date='20250331',
+                                      quantile=5,
+                                      quantile_position=[5])

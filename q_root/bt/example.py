@@ -47,7 +47,7 @@ cost = NoTransactionCost()
 config = {
     'init_invest': 1e8,
     'mkt': 'KOSPI200',
-    'start_date': '20200101',
+    'start_date': '20110101',
     'end_date': '20231231',
     'multiplier': 'Y',
     'buy_commission': cost.buy_commission,
@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
     mgr = AnalysisManager(config, methodology_types)
 
-    selected_methodology = MethodologyType.OPRChg
+    selected_methodology = MethodologyType.DataValidation
     raw_analysis = mgr.run(selected_methodology)
 
     analysis = AnalysisInteractive(raw_analysis)

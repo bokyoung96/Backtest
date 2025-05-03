@@ -431,7 +431,6 @@ class PortfolioBacktester:
                 logging.warning(
                     f"[QtyCalc] {rebalancing_date}: Sum of weights for investable stocks is near zero ({weights_sum}). Cannot calculate quantities.")
                 return pd.Series(dtype=float)
-            weights /= weights_sum
 
             target_investment = weights * total_assets
             q = target_investment / init_price.replace(0, np.nan)
@@ -478,6 +477,7 @@ class PortfolioBacktester:
             rebalancing_date = rebalancing_dates[period]
             formation_date = date_map.get(rebalancing_date)
 
+            # NOTE: In progress if formation_date is None or formation_date not in self.weights.index
             if formation_date is None or formation_date not in self.weights.index:
                 logging.error(
                     f"[Backtester] Critical error: Invalid or missing formation date ({formation_date}) for rebalancing date {rebalancing_date} in date_map. Skipping period.")
@@ -510,6 +510,7 @@ class PortfolioBacktester:
                     {'Date': rebalancing_date, 'Quantity': current_quantity.copy()})
                 continue
 
+            # NOTE: In progress if required datas are aligned
             if period < rebalancing_periods - 1:
                 next_rebalancing_date = rebalancing_dates[period + 1]
             else:
@@ -569,7 +570,21 @@ class PortfolioBacktester:
                                                              rebalancing_date=rebalancing_date,
                                                              total_assets=total_assets_before_rebalance)
 
-            if ideal_target_quantity.empty:
+            # NOTE: For banned stocks, if in portfolio, maintain current position
+            banned_stocks = []
+            if not current_quantity.empty and rebalancing_date in self.trans_ban.index:
+                banned_stocks = self.trans_ban.loc[rebalancing_date][self.trans_ban.loc[rebalancing_date] > 0].index
+                banned_holdings = current_quantity.index.intersection(
+                    banned_stocks)
+
+                if not banned_holdings.empty:
+                    for stock in banned_holdings:
+                        ideal_target_quantity[stock] = current_quantity[stock]
+
+                    logging.warning(
+                        f"[Backtester] {rebalancing_date.strftime('%Y%m%d')}: Found {len(banned_holdings)} banned stocks in current holdings. Maintaining current positions for: {banned_holdings.tolist()}")
+
+            if ideal_target_quantity.empty and len(banned_stocks) == 0:
                 logging.warning(
                     f"[Backtester] {rebalancing_date.strftime('%Y%m%d')}: Ideal target quantity is empty. Portfolio will be liquidated if holdings exist.")
                 ideal_target_quantity = pd.Series(dtype=float)
@@ -588,6 +603,13 @@ class PortfolioBacktester:
             logging.info(
                 f"[Backtester] {rebalancing_date.strftime('%Y%m%d')}: Cash Available Post-Ideal Sells: {cash_available_after_ideal_sells:.2f}")
 
+            # NOTE: Scale factor explanation:
+            # 1. Scale factor is used to adjust buy trades when there is insufficient cash
+            # 2. Scale factor = Available Cash / Required Cash for Buys (capped between 0 and 1)
+            # 3. Scale factor of 1.0 means all ideal buys can be executed fully
+            # 4. Scale factor of 0.0 means no buys can be executed (in cases of zero/negative cash)
+            # 5. Scale factor is only applied to buy trades, sell trades remain unchanged
+            # 6. Final target quantity = Current holdings + (Scaled buys) + (Original sells)
             final_target_quantity = ideal_target_quantity.copy()
             scale_factor = 1.0
 
@@ -604,15 +626,11 @@ class PortfolioBacktester:
                     logging.warning(
                         f"[Backtester] {rebalancing_date.strftime('%Y%m%d')}: Cash available after ideal sells is negative ({cash_available_after_ideal_sells:.2f}). Setting buy scale factor to 0.")
                 else:
-                    # Calculate scale factor
                     scale_factor = cash_available_after_ideal_sells / cash_needed_for_buys_gross
-                    # Clamp scale factor between 0 and 1
                     scale_factor = max(0.0, min(1.0, scale_factor))
                     logging.info(
                         f"[Backtester] {rebalancing_date.strftime('%Y%m%d')}: Buy scaling factor calculated: {scale_factor:.6f}")
 
-                # Apply scaling factor to the *change* in quantity for buy trades
-                # Ensure alignment before calculation
                 union_index = ideal_target_quantity.index.union(
                     current_quantity.index)
                 ideal_target_aligned = ideal_target_quantity.reindex(
@@ -621,35 +639,25 @@ class PortfolioBacktester:
                     union_index, fill_value=0.0)
 
                 net_trades_ideal = ideal_target_aligned - current_aligned
-
-                # Only scale the positive trades (buys)
                 scaled_buys = net_trades_ideal[net_trades_ideal >
                                                0] * scale_factor
-                # Sells are not scaled
                 sells = net_trades_ideal[net_trades_ideal <= 0]
 
-                # Reconstruct the final target quantity
-                # Start with current holdings, add scaled buys, add sells
                 final_target_quantity = current_aligned.copy()
                 final_target_quantity.update(
                     final_target_quantity.add(scaled_buys, fill_value=0.0))
                 final_target_quantity.update(
                     final_target_quantity.add(sells, fill_value=0.0))
-
-                # Remove entries that are effectively zero after scaling/rounding
-                final_target_quantity = final_target_quantity[final_target_quantity.abs(
-                ) > 1e-9].round(8)  # Apply rounding
-
-            else:
-                # No scaling needed
-                logging.info(
-                    f"[Backtester] {rebalancing_date.strftime('%Y%m%d')}: Ideal trades are affordable.")
-                # Ensure final target is clean (remove near-zero quantities if any)
                 final_target_quantity = final_target_quantity[final_target_quantity.abs(
                 ) > 1e-9].round(8)
 
-            # 5. Calculate Final Transaction Costs and Update Cash
-            # Use the potentially scaled final_target_quantity
+            else:
+                logging.info(
+                    f"[Backtester] {rebalancing_date.strftime('%Y%m%d')}: Ideal trades are affordable.")
+                final_target_quantity = final_target_quantity[final_target_quantity.abs(
+                ) > 1e-9].round(8)
+
+            # NOTE: Calculate costs under final target quantity (Scale considered)
             buy_value, sell_value, buy_cost, sell_cost, total_transaction_cost, transaction_summary = self.cost_calculator.calculate_costs(
                 final_target_quantity, current_quantity, rebalancing_date, self.price, total_assets_before_rebalance, calculate_summary=True)
 
@@ -658,7 +666,6 @@ class PortfolioBacktester:
                 logging.info(
                     f"[Backtester] {rebalancing_date.strftime('%Y%m%d')}: Final Trades - Sell Value: {sell_value:.2f}, Sell Cost: {sell_cost:.2f}, Buy Value: {buy_value:.2f}, Buy Cost: {buy_cost:.2f}, Total Cost: {total_transaction_cost:.2f}")
             else:
-                # Cost calculator should log errors, but add a warning here too
                 logging.warning(
                     f"[Backtester] {rebalancing_date.strftime('%Y%m%d')}: Transaction summary not generated (likely due to calculation errors). Assuming zero values/costs.")
                 buy_value, sell_value, buy_cost, sell_cost, total_transaction_cost = 0.0, 0.0, 0.0, 0.0, 0.0
@@ -670,56 +677,53 @@ class PortfolioBacktester:
             logging.info(
                 f"[Backtester] {rebalancing_date.strftime('%Y%m%d')}: Cash Balance Updated. Net flow from trades: {net_cash_flow_from_trades:.2f}. Final Cash Balance: {cash_balance:.2f}")
 
-            # Handle potential small negative cash balance due to floating point errors
+            # NOTE: Assume long-only, non-leveraged portfolio, so cash balance cannot be negative
+            # If cash balance is negative due to floating point errors, clamp to 0.0
             if cash_balance < 0:
-                if abs(cash_balance) > 1.0:  # Use a threshold slightly larger than typical float errors
+                if abs(cash_balance) > 1.0:
                     logging.error(
                         f"[Backtester] {rebalancing_date.strftime('%Y%m%d')}: Significant negative cash balance detected ({cash_balance:,.2f}) after trades! Check scaling logic or costs.")
-                    # Depending on policy, either raise error or clamp
                     logging.warning(
                         "[Backtester] Clamping significantly negative cash balance to 0.0. Results might be inaccurate.")
                     cash_balance = 0.0
                 else:
-                    # Clamp near-zero negative balances
                     logging.warning(
                         f"[Backtester] {rebalancing_date.strftime('%Y%m%d')}: Near-zero negative cash balance ({cash_balance:.2f}) detected after trades. Clamping to 0.0")
                     cash_balance = 0.0
 
-            # Record cash balance after trades
             self._cash_balances.append(
                 {'Date': rebalancing_date, 'Cash Balance': cash_balance, 'State': 'Post-Trade'})
 
-            # 6. Calculate Portfolio Value for Holding Period
             holding_period_dates = self.price.index[
                 (self.price.index > rebalancing_date) & (
                     self.price.index <= next_rebalancing_date)
             ]
 
-            # Initialize empty series for the period
+            # NOTE: Period portfolio values and cash values under holding period
+            # Period cash values are updated after trades
+            # Get valid stocks present in both target quantity and price columns
             period_portfolio_values = pd.Series(
                 dtype=float, index=holding_period_dates)
 
+            period_cash_values = pd.Series(
+                cash_balance, index=holding_period_dates, dtype=float)
+
             if not final_target_quantity.empty and not holding_period_dates.empty:
-                # Get valid stocks present in both target quantity and price columns
                 valid_cols = final_target_quantity.index.intersection(
                     self.price.columns)
                 qty_filtered = final_target_quantity.reindex(
-                    valid_cols).fillna(0)  # Use only stocks with price data
+                    valid_cols).fillna(0)
 
                 if not qty_filtered.empty:
                     try:
-                        # Select price data for the holding period and valid stocks
                         price_period = self.price.loc[holding_period_dates, qty_filtered.index].fillna(
                             0)
-                        # Calculate daily portfolio value using matrix multiplication
                         daily_values = price_period @ qty_filtered
-                        period_portfolio_values = daily_values  # Assign calculated values
+                        period_portfolio_values = daily_values
                     except Exception as e:
                         logging.error(
                             f"[Backtester] Error calculating daily portfolio values for period starting {rebalancing_date}: {e}")
-                        # Keep period_portfolio_values as empty/zero based on initialization
 
-                # Log if some target stocks were excluded due to missing price columns
                 missing_cols = final_target_quantity.index.difference(
                     valid_cols)
                 if not missing_cols.empty:
@@ -727,32 +731,31 @@ class PortfolioBacktester:
                                     f"during holding period {rebalancing_date.strftime('%Y%m%d')} to {next_rebalancing_date.strftime('%Y%m%d')}. "
                                     "Excluded from daily value calculation.")
 
-            # Append the portfolio values (could be zero if no holdings or no holding days)
-            portfolio_values_over_time.append(
-                period_portfolio_values.to_frame('Portfolio'))
+            period_df = pd.DataFrame({
+                'Portfolio': period_portfolio_values,
+                'Cash': period_cash_values,
+                'Total': period_portfolio_values + period_cash_values
+            })
+            portfolio_values_over_time.append(period_df)
 
-            # 7. Update State for Next Period
+            # NOTE: Update for next period
             current_quantity = final_target_quantity.copy()
             self._final_holdings_data.append(
                 {'Date': rebalancing_date, 'Quantity': current_quantity.copy()})
 
             logging.info(
                 f"--- Period End: {rebalancing_date.strftime('%Y%m%d')} (Held until {next_rebalancing_date.strftime('%Y%m%d')}) ---")
-            # --- End of Loop ---
 
-        # --- Post-Loop Processing ---
+        # NOTE: Handle case with rebalancing dates but no values generated (e.g., all periods skipped)
         if not portfolio_values_over_time:
             logging.warning(
                 "[Backtester] No portfolio values were generated during the backtest loop.")
-            # Handle case with rebalancing dates but no values generated (e.g., all periods skipped)
             if rebalancing_dates:
                 start_date = rebalancing_dates[0]
-                # Attempt to get initial cash state correctly
                 initial_cash_state = next(
                     (item for item in self._cash_balances if item['Date'] == start_date), None)
                 initial_cash = initial_cash_state['Cash Balance'] if initial_cash_state else self.init_invest
 
-                # Create a single row DataFrame representing the initial state
                 initial_df = pd.DataFrame({'Portfolio': [0.0], 'Cash': [initial_cash], 'Total': [
                                           initial_cash]}, index=[start_date])
                 initial_df.index.name = 'Date'
@@ -760,51 +763,19 @@ class PortfolioBacktester:
                 logging.warning(
                     "[Backtester] Returning DataFrame with initial cash state only.")
                 return self._results_df
-            else:  # No rebalancing dates at all
+            else:
                 self._results_df = pd.DataFrame(
                     columns=['Portfolio', 'Cash', 'Total'], index=pd.to_datetime([]), dtype=float)
                 return self._results_df
 
-        # Concatenate daily portfolio values
+        # NOTE: Concatenate daily portfolio values
         results_df = pd.concat(portfolio_values_over_time)
         results_df.index.name = 'Date'
 
-        # Add Cash and Total NAV columns
-        # Create DataFrame from cash balances recorded *after trades*
-        cash_post_trade_df = pd.DataFrame([cb for cb in self._cash_balances if cb['State'] ==
-                                          'Post-Trade' or 'Skipped' in cb['State']]).set_index('Date')  # Include skipped state cash
-        # Forward fill cash balance onto the results DataFrame
-        results_df['Cash'] = cash_post_trade_df['Cash Balance'].reindex(
-            results_df.index, method='ffill')
-
-        # Handle potential NaNs at the beginning if the first result day is before the first rebalancing
-        first_recorded_cash_date = cash_post_trade_df.index.min(
-        ) if not cash_post_trade_df.empty else None
-        if first_recorded_cash_date is not None:
-            # Fill initial period before first rebalancing with initial investment
-            # This assumes the period before the first recorded cash balance should reflect initial investment state
-            # Be careful: this might need adjustment based on whether day 1 includes trading
-            # Let's refine: only fill if the first result index is EARLIER than the first cash record
-            if not results_df.empty and results_df.index.min() < first_recorded_cash_date:
-                results_df.loc[results_df.index <
-                               first_recorded_cash_date, 'Cash'] = self.init_invest
-
-        # Fill any remaining NaNs (e.g., if cash_post_trade_df was empty or ffill didn't cover all)
-        # Forward fill first, then backfill, then fill with initial investment as last resort
-        results_df['Cash'] = results_df['Cash'].ffill()  # Changed from inplace
-        results_df['Cash'] = results_df['Cash'].bfill()  # Changed from inplace
-        results_df['Cash'] = results_df['Cash'].fillna(
-            self.init_invest)  # Changed from inplace
-
-        # Calculate Total NAV
-        results_df['Total'] = results_df['Portfolio'] + results_df['Cash']
-
-        # Cache and return results
         self._results_df = results_df.sort_index()
         print("***** Portfolio backtest simulation finished *****\n")
         return self._results_df
 
-    # --- Result Properties ---
     @property
     def results(self) -> Optional[pd.DataFrame]:
         """Returns the main results DataFrame (Portfolio, Cash, Total). Runs backtest if needed."""
@@ -818,19 +789,17 @@ class PortfolioBacktester:
     def transaction_costs_summary(self) -> pd.DataFrame:
         """Returns a DataFrame summarizing transaction details for each rebalancing date."""
         if not self._transaction_summaries:
-            if self._results_df is not None:  # Check if backtest ran but had no trades
+            if self._results_df is not None:
                 logging.warning(
                     "[Backtester] Backtest was run, but no transaction summaries were generated (possibly no trades or errors during cost calculation). Returning empty summary.")
-            else:  # Backtest hasn't run
+            else:
                 logging.warning(
                     "[Backtester] Backtest has not been run. Execute run_backtest() first to get transaction summaries.")
-            # Return empty DataFrame with correct columns
             cols = ['Date', 'Total Buy Value', 'Total Sell Value', 'Shares Bought', 'Shares Sold',
                     'Total Buy Cost', 'Total Sell Cost', 'Total Transaction Cost', 'Total NAV',
                     'Transaction Cost (bp)', 'Error']
             return pd.DataFrame(columns=cols).set_index('Date')
 
-        # Filter out potential None entries if errors occurred without summary generation
         valid_summaries = [
             s for s in self._transaction_summaries if s is not None]
         if not valid_summaries:
@@ -859,7 +828,7 @@ class PortfolioBacktester:
     @property
     def portfolio_returns(self) -> pd.DataFrame:
         """Calculates and returns the daily percentage returns of the total portfolio NAV."""
-        results_df = self.results  # Ensures backtest is run
+        results_df = self.results
         if results_df is None or results_df.empty or 'Total' not in results_df.columns:
             logging.warning(
                 "[Backtester] Cannot calculate portfolio returns: Results DataFrame is missing, empty, or lacks 'Total' column.")
@@ -869,9 +838,7 @@ class PortfolioBacktester:
                 "[Backtester] Cannot calculate portfolio returns: Not enough data points.")
             return pd.DataFrame(columns=['Portfolio Return'], index=results_df.index, dtype=float)
 
-        # Calculate percentage change
         pf_ret = results_df['Total'].pct_change().to_frame('Portfolio Return')
-        # Ensure index is DatetimeIndex and named 'Date'
         pf_ret.index = pd.to_datetime(results_df.index)
         pf_ret.index.name = 'Date'
         return pf_ret
@@ -879,18 +846,16 @@ class PortfolioBacktester:
     @property
     def benchmark_returns(self) -> pd.DataFrame:
         """Calculates and returns the daily percentage returns of the benchmark index over the backtest period."""
-        results_df = self.results  # Ensures backtest is run and we have the date range
+        results_df = self.results
         if results_df is None or results_df.empty:
             logging.warning(
                 "[Backtester] Cannot calculate benchmark returns: Backtest results unavailable for date range.")
             return pd.DataFrame(columns=[self.bm.columns[0] if not self.bm.empty else 'Benchmark'], index=pd.to_datetime([]), dtype=float)
 
-        # Determine the date range from the actual backtest results
         start_date = results_df.index.min()
         end_date = results_df.index.max()
 
         try:
-            # Filter benchmark data for the relevant period
             bm_relevant = self.bm.loc[start_date:end_date]
 
             if bm_relevant.empty:
@@ -900,21 +865,17 @@ class PortfolioBacktester:
             if len(bm_relevant) < 2:
                 logging.warning(
                     "[Backtester] Not enough benchmark data points within the backtest period to calculate returns.")
-                # Return with dates but NaN returns
                 return pd.DataFrame(columns=[self.bm.columns[0] if not self.bm.empty else 'Benchmark'], index=bm_relevant.index, dtype=float)
 
-            # Calculate returns
             bm_ret = bm_relevant.pct_change()
             bm_ret.index = pd.to_datetime(
-                bm_relevant.index)  # Ensure datetime index
+                bm_relevant.index)
             bm_ret.index.name = 'Date'
-            # Reindex to match the portfolio results index for alignment in analysis
             return bm_ret.reindex(results_df.index)
 
         except Exception as e:
             logging.error(
                 f"[Backtester] Error calculating benchmark returns: {e}")
-            # Return empty aligned frame
             return pd.DataFrame(columns=[self.bm.columns[0] if not self.bm.empty else 'Benchmark'], index=results_df.index, dtype=float)
 
     @property
@@ -935,10 +896,6 @@ class PortfolioBacktester:
             if not item['Quantity'].empty:
                 dates_list.append(item['Date'])
                 quantities_list.append(item['Quantity'])
-            # Option: could include dates with empty quantities if needed
-            # else:
-            #     dates_list.append(item['Date'])
-            #     quantities_list.append(pd.Series(dtype=float)) # Append empty series
 
         if not quantities_list:
             logging.warning(
@@ -1121,23 +1078,3 @@ class PortfolioBacktester:
                 traceback.print_exc()
                 continue
         return sector_snapshots
-
-
-# Example of how PortfolioAnalysis might use the refactored class
-# (This part would typically be in main.py or analysis.py)
-# class PortfolioAnalysis:
-#     def __init__(self, backtester: PortfolioBacktester):
-#         self.backtester = backtester
-#         self.results = backtester.results
-#         self.pf_returns = backtester.portfolio_returns
-#         self.bm_returns = backtester.benchmark_returns
-#         self.transactions = backtester.transaction_costs_summary
-#         # ... other data needed for analysis
-
-#     def generate_summary(self):
-#         # ... use self.pf_returns, self.bm_returns etc. to calculate metrics ...
-#         pass
-
-#     def plot_performance(self):
-#         # ... use self.results to plot NAV etc. ...
-#         pass
