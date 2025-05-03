@@ -8,7 +8,7 @@ from bt.loader import DataLoader
 from bt.methodology import Methodology
 
 
-class MethodologyERRChg(Methodology):
+class MethodologyEPSChgFY1(Methodology):
     def __init__(self,
                  mkt: str = 'KOSPI200',
                  start_date: str = '20110101',
@@ -27,14 +27,11 @@ class MethodologyERRChg(Methodology):
 
         self.load_data()
         self.load_const()
-        self.load_sector()
 
     def load_data(self) -> Dict[str, pd.DataFrame]:
         data_names = ['price_adj',
                       'mktcap_float',
-                      'err_1m',
-                      'err_2m',
-                      'wics_sector_big']
+                      'eps_nfy1_e']
         raw_data = Tools.get_data(mkt=self.mkt,
                                   data_names=data_names,
                                   loader_cls=DataLoader)
@@ -49,47 +46,30 @@ class MethodologyERRChg(Methodology):
                                           check_nan=True,
                                           fill_method='ffill_bfill')
 
-    def load_sector(self):
-        self.sector = Tools.get_data_align(const=self.data['wics_sector_big'],
-                                           prc=self.data['price_adj'],
-                                           check_nan=False,
-                                           fill_method='ffill_bfill')
-
     def get_raw_factor(self):
         try:
-            Tools.validation_df_size(self.data['err_1m'],
-                                     self.data['err_2m'])
+            eps_nfy1_e = self.data['eps_nfy1_e'].copy()
 
-            err_1m = self.data['err_1m'].copy()
-            err_2m = self.data['err_2m'].copy()
-
-            raw_factor = pd.DataFrame(
-                index=err_1m.index, columns=err_1m.columns)
-            raw_factor = (err_1m + err_2m) / 2
-
-            mask_nan = err_1m.isna() | err_2m.isna()
-            raw_factor[mask_nan] = np.nan
-
-            orig_idx = raw_factor.index.copy()
+            orig_idx = eps_nfy1_e.index.copy()
             m_periods = pd.PeriodIndex(orig_idx, freq='M')
+
             m_data = {}
             for month in set(m_periods):
                 m_dates = orig_idx[m_periods == month]
                 last_date = m_dates[-1]
-                m_data[month] = raw_factor.loc[last_date].copy()
+                m_data[month] = eps_nfy1_e.loc[last_date].copy()
 
-            shifted_data = {}
-            for month in sorted(m_data.keys()):
-                prev_month = month - 1
-                if prev_month in m_data:
-                    shifted_data[month] = m_data[prev_month].copy()
+            month_ends = pd.Series(m_data).sort_index()
+            month_end_df = pd.DataFrame(
+                month_ends.values.tolist(), index=month_ends.index)
 
-            lagged_factor = pd.DataFrame(
-                index=orig_idx, columns=raw_factor.columns)
+            pct_change_df = (month_end_df / month_end_df.shift(1).abs() - 1)
+
+            m_factor = pd.DataFrame(index=orig_idx, columns=eps_nfy1_e.columns)
             for date, period in zip(orig_idx, m_periods):
-                if period in shifted_data:
-                    lagged_factor.loc[date] = shifted_data[period]
-            return lagged_factor
+                if period in pct_change_df.index:
+                    m_factor.loc[date] = pct_change_df.loc[period]
+            return m_factor
 
         except ValueError as e:
             raise ValueError(f"Failed to create factor: {e}")
@@ -170,7 +150,8 @@ class MethodologyERRChg(Methodology):
 
 
 if __name__ == "__main__":
-    m = MethodologyERRChg(mkt='KOSPI200',
-                          start_date='20110101',
-                          end_date='20250101',
-                          quantile=4)
+    m = MethodologyEPSChgFY1(mkt='KOSPI200',
+                             start_date='20110101',
+                             end_date='20250101',
+                             quantile=5,
+                             quantile_position=[5])

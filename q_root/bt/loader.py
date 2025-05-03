@@ -6,6 +6,7 @@ from enum import Enum, unique
 
 # NOTE: If updating price data, benchmark data & trans_ban data should be updated in addition.
 # NOTE: If updating price data, update mktcap_float data, ensuring its data size equals.
+# NOTE: For price, trans_ban data, KOSPI200 data is used as substitute for index futures data.
 
 BS = "data_bs_%s"
 IS = "data_is_%s"
@@ -26,6 +27,7 @@ class DirMkt(Enum):
 @unique
 class BSItem(Enum):
     asset_lfq0 = "asset_lfq0"
+    equity_nfq1 = "equity_nfq1"
 
     def as_bs(self):
         return BS % self.value
@@ -59,6 +61,10 @@ class CFItem(Enum):
 class FNItem(Enum):
     pbr_ttm_lfq0 = "pbr_ttm_lfq0"
     mtob_ttm_lfq0 = "mtob_ttm_lfq0"
+    eps_nfq1_e = "eps_nfq1_e"
+    eps_nfy1_e = "eps_nfy1_e"
+    eps_nfy2_e = "eps_nfy2_e"
+    eps_nfy0 = "eps_nfy0"
 
     def as_fn(self):
         return FN % self.value
@@ -71,9 +77,12 @@ class BaseItem(Enum):
     volume = "volume"
     shares_outstanding = "shares_outstanding"
     mktcap_float = "mktcap_float"
+    mktcap = "mktcap"
     trans_ban = "trans_ban"
     ev_ttm_lfq0 = "ev_ttm_lfq0"
     wics_sector_big = "wics_sector_big"
+    wics_sector_26 = "wics_sector_26"
+    donchian_ohlc = "donchian_ohlc"
 
     def as_base(self):
         return BASE % self.value
@@ -83,6 +92,7 @@ class BaseItem(Enum):
 class DataPool(Enum):
     # NOTE: Balance Sheet Items
     data_bs_asset_lfq0 = BSItem.asset_lfq0.as_bs()
+    data_bs_equity_nfq1 = BSItem.equity_nfq1.as_bs()
 
     # NOTE: Income Statement Items
     data_is_gp_lfq0 = ISItem.gp_lfq0.as_is()
@@ -101,6 +111,10 @@ class DataPool(Enum):
     # NOTE: Financial Items
     data_fn_pbr_ttm_lfq0 = FNItem.pbr_ttm_lfq0.as_fn()
     data_fn_mtob_ttm_lfq0 = FNItem.mtob_ttm_lfq0.as_fn()
+    data_fn_eps_nfq1_e = FNItem.eps_nfq1_e.as_fn()
+    data_fn_eps_nfy1_e = FNItem.eps_nfy1_e.as_fn()
+    data_fn_eps_nfy2_e = FNItem.eps_nfy2_e.as_fn()
+    data_fn_eps_nfy0 = FNItem.eps_nfy0.as_fn()
 
     # NOTE: Base Items
     data_base_bm = BaseItem.bm.as_base()
@@ -108,9 +122,12 @@ class DataPool(Enum):
     data_base_volume = BaseItem.volume.as_base()
     data_base_shares_outstanding = BaseItem.shares_outstanding.as_base()
     data_base_mktcap_float = BaseItem.mktcap_float.as_base()
+    data_base_mktcap = BaseItem.mktcap.as_base()
     data_base_trans_ban = BaseItem.trans_ban.as_base()
     data_base_ev_ttm_lfq0 = BaseItem.ev_ttm_lfq0.as_base()
     data_base_wics_sector_big = BaseItem.wics_sector_big.as_base()
+    data_base_donchian_ohlc = BaseItem.donchian_ohlc.as_base()
+    data_base_wics_sector_26 = BaseItem.wics_sector_26.as_base()
 
 
 class DataLoader:
@@ -143,16 +160,29 @@ class DataLoader:
                  tr_yn: bool = False) -> pd.DataFrame:
         res = None
         for member_name, member in DataPool.__members__.items():
-            if data_name in member.value:
+            if data_name == member.value:
                 res = member_name
                 break
 
-        if not res:
-            raise ValueError(f"No matching data name for <{data_name}>.")
+        if res is None:
+            for member_name, member in DataPool.__members__.items():
+                short_name = member.value.split('_', 2)[-1]
+                if data_name == short_name:
+                    res = member_name
+                    break
+
+        if res is None:
+            available_data = []
+            for member in DataPool.__members__.values():
+                full_name = member.value
+                short_name = full_name.split('_', 2)[-1]
+                available_data.append(f"{short_name} (full: {full_name})")
+            raise ValueError(
+                f"Data name '{data_name}' not found. Available data names are: {available_data}")
 
         data_path = os.path.join(
             self.data_dir, f'{DataPool[res].value}.parquet')
-        if data_name == 'bm':
+        if data_name == 'bm' or data_name == 'data_base_bm':
             data = self.data_loader_bm(data_path=data_path,
                                        tr_yn=tr_yn)
         else:
