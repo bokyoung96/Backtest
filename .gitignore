@@ -1,3 +1,6 @@
+# Ignore results
+price_trends_avg.parquet
+
 # Infos: Contact BKChoi
 contact.html
 privacy.html
