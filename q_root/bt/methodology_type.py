@@ -8,6 +8,7 @@ from bt.methodologies.methodology_eps_chg import *
 from bt.methodologies.methodology_eps_chg_fy1 import *
 from bt.methodologies.methodology_eps_chg_fy2_vol_adj import *
 from bt.methodologies.methodology_pb_fq1 import *
+from bt.methodologies.methodology_price_trends import *
 
 
 @unique
@@ -20,6 +21,7 @@ class MethodologyType(Enum):
     DonchianChannel = "DonchianChannel"
     EPSChgFY2VolAdj = "EPSChgFY2VolAdj"
     MethodologyPBFQ1SectorNeutral = "MethodologyPBFQ1SectorNeutral"
+    MethodologyPriceTrends = "MethodologyPriceTrends"
 
 
 methodology_clses: Dict[MethodologyType, Type] = {
@@ -29,7 +31,8 @@ methodology_clses: Dict[MethodologyType, Type] = {
     MethodologyType.EPSChg: MethodologyEPSChg,
     MethodologyType.EPSChgFY1: MethodologyEPSChgFY1,
     MethodologyType.EPSChgFY2VolAdj: MethodologyEPSChgFY2VolAdj,
-    MethodologyType.MethodologyPBFQ1SectorNeutral: MethodologyPBFQ1SectorNeutral
+    MethodologyType.MethodologyPBFQ1SectorNeutral: MethodologyPBFQ1SectorNeutral,
+    MethodologyType.MethodologyPriceTrends: MethodologyPriceTrends
 }
 
 
