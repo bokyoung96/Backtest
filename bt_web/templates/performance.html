@@ -554,6 +554,187 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
         </div>
       </div>
     </div>
+    <div class="text-end mt-3">
+      <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#customizeForm">
+        <i class="fas fa-sliders-h me-1"></i> Customize Parameters
+      </button>
+    </div>
+  </div>
+
+  <!-- 커스터마이징 폼 추가 -->
+  <div class="collapse mb-4" id="customizeForm">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">Customize Backtest Parameters</h5>
+      </div>
+      <div class="card-body">
+        <form id="customParamsForm" action="{{ url_for('methodology_performance', name=data.name) }}" method="get">
+          <div class="row">
+            <!-- 기본 파라미터 섹션 -->
+            <div class="col-md-12 mb-3">
+              <h6 class="border-bottom pb-2">Basic Parameters</h6>
+            </div>
+            
+            <div class="col-md-4 mb-3">
+              <label for="market" class="form-label">Market</label>
+              <select class="form-select form-select-sm" id="market" name="market">
+                <option value="KOSPI200" {% if data.params.mkt == "KOSPI200" %}selected{% endif %}>KOSPI 200</option>
+                <option value="KOSPI" {% if data.params.mkt == "KOSPI" %}selected{% endif %}>KOSPI</option>
+                <option value="KOSDAQ150" {% if data.params.mkt == "KOSDAQ150" %}selected{% endif %}>KOSDAQ 150</option>
+                <option value="KOSDAQ" {% if data.params.mkt == "KOSDAQ" %}selected{% endif %}>KOSDAQ</option>
+                <option value="KOSPI_KOSDAQ" {% if data.params.mkt == "KOSPI_KOSDAQ" %}selected{% endif %}>KOSPI+KOSDAQ</option>
+              </select>
+            </div>
+            
+            <div class="col-md-4 mb-3">
+              <label for="start_date" class="form-label">Start Date</label>
+              <input type="text" class="form-control form-control-sm" id="start_date" name="start_date" value="{{ data.params.start_date }}" placeholder="YYYYMMDD">
+            </div>
+            
+            <div class="col-md-4 mb-3">
+              <label for="end_date" class="form-label">End Date</label>
+              <input type="text" class="form-control form-control-sm" id="end_date" name="end_date" value="{{ data.params.end_date }}" placeholder="YYYYMMDD">
+            </div>
+            
+            <div class="col-md-4 mb-3">
+              <label for="initial_investment" class="form-label">Initial Investment (KRW)</label>
+              <input type="number" class="form-control form-control-sm" id="initial_investment" name="initial_investment" value="{{ data.params.init_invest|int }}">
+            </div>
+            
+            <div class="col-md-4 mb-3">
+              <label for="freq" class="form-label">Rebalancing Frequency</label>
+              <select class="form-select form-select-sm" id="freq" name="freq">
+                <option value="daily" {% if data.params.freq == "daily" %}selected{% endif %}>Daily</option>
+                <option value="weekly" {% if data.params.freq == "weekly" %}selected{% endif %}>Weekly</option>
+                <option value="monthly" {% if data.params.freq == "monthly" %}selected{% endif %}>Monthly</option>
+                <option value="quarterly" {% if data.params.freq == "quarterly" %}selected{% endif %}>Quarterly</option>
+              </select>
+            </div>
+            
+            <div class="col-md-4 mb-3">
+              <label for="rebal_timing" class="form-label">Rebalancing Timing</label>
+              <select class="form-select form-select-sm" id="rebal_timing" name="rebal_timing">
+                <option value="same" {% if data.params.rebal_timing == "same" %}selected{% endif %}>Same day</option>
+                <option value="next" {% if data.params.rebal_timing == "next" %}selected{% endif %}>Next day</option>
+              </select>
+            </div>
+            
+            <!-- 거래 비용 섹션 -->
+            <div class="col-md-12 mt-3 mb-3">
+              <h6 class="border-bottom pb-2">Transaction Costs</h6>
+            </div>
+            
+            <div class="col-md-4 mb-3">
+              <label for="transaction_cost_type" class="form-label">Transaction Cost Type</label>
+              <select class="form-select form-select-sm" id="transaction_cost_type" name="transaction_cost_type">
+                <option value="custom" {% if request.args.get('transaction_cost_type', 'custom') == "custom" %}selected{% endif %}>Custom</option>
+                <option value="korea" {% if request.args.get('transaction_cost_type') == "korea" %}selected{% endif %}>Korea Standard</option>
+                <option value="none" {% if request.args.get('transaction_cost_type') == "none" %}selected{% endif %}>None</option>
+              </select>
+            </div>
+            
+            <div class="col-md-4 mb-3 transaction-cost-field">
+              <label for="buy_commission" class="form-label">Buy Commission (%)</label>
+              <input type="number" class="form-control form-control-sm" id="buy_commission" name="buy_commission" value="{{ (data.params.buy_commission * 100)|round(4) }}" step="0.0001">
+            </div>
+            
+            <div class="col-md-4 mb-3 transaction-cost-field">
+              <label for="sell_commission" class="form-label">Sell Commission (%)</label>
+              <input type="number" class="form-control form-control-sm" id="sell_commission" name="sell_commission" value="{{ (data.params.sell_commission * 100)|round(4) }}" step="0.0001">
+            </div>
+            
+            <div class="col-md-4 mb-3 transaction-cost-field">
+              <label for="slippage" class="form-label">Slippage (%)</label>
+              <input type="number" class="form-control form-control-sm" id="slippage" name="slippage" value="{{ (data.params.slippage * 100)|round(4) }}" step="0.0001">
+            </div>
+            
+            <div class="col-md-4 mb-3 transaction-cost-field">
+              <label for="sell_tax" class="form-label">Sell Tax (%)</label>
+              <input type="number" class="form-control form-control-sm" id="sell_tax" name="sell_tax" value="{{ (data.params.sell_tax * 100)|round(4) }}" step="0.0001">
+            </div>
+            
+            <div class="col-md-4 mb-3 transaction-cost-field">
+              <label for="cash_rate" class="form-label">Cash Rate (%)</label>
+              <input type="number" class="form-control form-control-sm" id="cash_rate" name="cash_rate" value="{{ (data.params.cash_rate * 100)|round(4) }}" step="0.0001">
+            </div>
+            
+            <!-- 팩터 파라미터 섹션 -->
+            <div class="col-md-12 mt-3 mb-3">
+              <h6 class="border-bottom pb-2">Factor Parameters</h6>
+            </div>
+            
+            <div class="col-md-4 mb-3">
+              <label for="quantile" class="form-label">Quantile</label>
+              <select class="form-select form-select-sm" id="quantile" name="quantile">
+                <option value="5" {% if data.params.quantile == 5 %}selected{% endif %}>5</option>
+                <option value="10" {% if data.params.quantile == 10 %}selected{% endif %}>10</option>
+                <option value="20" {% if data.params.quantile == 20 %}selected{% endif %}>20</option>
+              </select>
+            </div>
+            
+            <div class="col-md-4 mb-3">
+              <label for="weight_type" class="form-label">Weight Type</label>
+              <select class="form-select form-select-sm" id="weight_type" name="weight_type">
+                <option value="ew" {% if data.params.weight_type == "ew" %}selected{% endif %}>Equal Weight</option>
+                <option value="mktcap_float" {% if data.params.weight_type == "mktcap_float" %}selected{% endif %}>Market Cap Weight</option>
+              </select>
+            </div>
+            
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Quantile Position</label>
+              <div id="quantile-positions" class="d-flex flex-wrap gap-2">
+                {% for i in range(1, data.params.quantile + 1) %}
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="checkbox" id="pos{{ i }}" name="quantile_position" value="{{ i }}"
+                    {% if i in data.params.quantile_position %}checked{% endif %}>
+                  <label class="form-check-label" for="pos{{ i }}">{{ i }}</label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- 특정 방법론 파라미터 섹션 -->
+            {% if data.name == "Lifecycle" %}
+            <div class="col-md-12 mt-3 mb-3 methodology-specific">
+              <h6 class="border-bottom pb-2">Lifecycle Parameters</h6>
+            </div>
+            
+            <div class="col-md-4 mb-3 methodology-specific">
+              <label for="lifecycle_stage" class="form-label">Lifecycle Stage</label>
+              <select class="form-select form-select-sm" id="lifecycle_stage" name="lifecycle_stage">
+                <option value="introduction" {% if request.args.get('lifecycle_stage') == "introduction" %}selected{% endif %}>Introduction</option>
+                <option value="growth" {% if request.args.get('lifecycle_stage', 'growth') == "growth" %}selected{% endif %}>Growth</option>
+                <option value="maturity" {% if request.args.get('lifecycle_stage') == "maturity" %}selected{% endif %}>Maturity</option>
+                <option value="shake_out" {% if request.args.get('lifecycle_stage') == "shake_out" %}selected{% endif %}>Shake-out</option>
+                <option value="decline" {% if request.args.get('lifecycle_stage') == "decline" %}selected{% endif %}>Decline</option>
+              </select>
+            </div>
+            {% endif %}
+            
+            {% if data.name == "EPSChgFY2VolAdj" %}
+            <div class="col-md-12 mt-3 mb-3 methodology-specific">
+              <h6 class="border-bottom pb-2">EPS Change Parameters</h6>
+            </div>
+            
+            <div class="col-md-4 mb-3 methodology-specific">
+              <label for="volatility_adjustment" class="form-label">Volatility Adjustment</label>
+              <select class="form-select form-select-sm" id="volatility_adjustment" name="volatility_adjustment">
+                <option value="low" {% if request.args.get('volatility_adjustment') == "low" %}selected{% endif %}>Low</option>
+                <option value="medium" {% if request.args.get('volatility_adjustment', 'medium') == "medium" %}selected{% endif %}>Medium</option>
+                <option value="high" {% if request.args.get('volatility_adjustment') == "high" %}selected{% endif %}>High</option>
+              </select>
+            </div>
+            {% endif %}
+          </div>
+          
+          <div class="text-center mt-4">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-play me-2"></i>Run Backtest with New Parameters
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 
   <div class="card">
@@ -980,6 +1161,9 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
 
     // Get raw chart data from the template
     const rawChartData = {{ data.get('chart_data', []) | tojson }};
+
+    // 새로 추가: 커스터마이징 폼 관련 기능
+    setupCustomizationForm();
 
     // Prepare data for cash balance chart
     const cashBalanceData = [];
@@ -2246,6 +2430,131 @@ endblock %} {% block head_extra %} {# Include Chart.js library #}
         downloadBtn.disabled = false;
       }, 3000);
     }, 500);
+  }
+
+  // 커스터마이징 폼 동작을 위한 함수
+  function setupCustomizationForm() {
+    // 폼 요소 가져오기
+    const form = document.getElementById('customParamsForm');
+    const quantileSelect = document.getElementById('quantile');
+    const transactionCostTypeSelect = document.getElementById('transaction_cost_type');
+    const costFields = document.querySelectorAll('.transaction-cost-field');
+
+    // Quantile 변경 시 position 체크박스 업데이트
+    if (quantileSelect) {
+      quantileSelect.addEventListener('change', function() {
+        updateQuantilePositions(parseInt(this.value));
+      });
+    }
+
+    // Transaction cost type 변경 시 필드 표시/숨김
+    if (transactionCostTypeSelect) {
+      transactionCostTypeSelect.addEventListener('change', function() {
+        toggleCostFields(this.value);
+      });
+      
+      // 초기 상태 설정
+      toggleCostFields(transactionCostTypeSelect.value);
+    }
+
+    // 폼 제출 전에 백분율 값을 소수로 변환
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        // 백분율 값을 소수로 변환
+        const percentageFields = ['buy_commission', 'sell_commission', 'slippage', 'sell_tax', 'cash_rate'];
+        percentageFields.forEach(fieldName => {
+          const field = document.getElementById(fieldName);
+          if (field && field.value) {
+            // 원래 값 저장 (디버깅용)
+            const originalValue = field.value;
+            // 백분율 값을 소수로 변환 (100% -> 1.0)
+            field.value = (parseFloat(field.value) / 100).toString();
+            console.log(`Converting ${fieldName} from ${originalValue} to ${field.value}`);
+          }
+        });
+
+        // quantile_position 값을 처리하기 위한 코드
+        processQuantilePositions();
+      });
+    }
+
+    // Quantile position 체크박스 업데이트 함수
+    function updateQuantilePositions(quantileValue) {
+      const container = document.getElementById('quantile-positions');
+      if (!container) return;
+
+      // 체크된 위치를 기억
+      const checkedPositions = [];
+      document.querySelectorAll('#quantile-positions input[type="checkbox"]:checked').forEach(checkbox => {
+        checkedPositions.push(parseInt(checkbox.value));
+      });
+
+      // 컨테이너 비우기
+      container.innerHTML = '';
+
+      // 새 체크박스 생성
+      for (let i = 1; i <= quantileValue; i++) {
+        const div = document.createElement('div');
+        div.className = 'form-check form-check-inline';
+
+        const input = document.createElement('input');
+        input.className = 'form-check-input';
+        input.type = 'checkbox';
+        input.id = 'pos' + i;
+        input.name = 'quantile_position';
+        input.value = i;
+
+        // 이전에 체크되었거나 디폴트(1번)이면 체크
+        if (checkedPositions.includes(i) || (checkedPositions.length === 0 && i === 1)) {
+          input.checked = true;
+        }
+
+        const label = document.createElement('label');
+        label.className = 'form-check-label';
+        label.htmlFor = 'pos' + i;
+        label.textContent = i;
+
+        div.appendChild(input);
+        div.appendChild(label);
+        container.appendChild(div);
+      }
+    }
+
+    // 거래 비용 필드 표시/숨김 함수
+    function toggleCostFields(costType) {
+      costFields.forEach(field => {
+        if (costType === 'custom') {
+          field.style.display = 'block';
+        } else {
+          field.style.display = 'none';
+        }
+      });
+    }
+
+    // Quantile position 값 처리 함수
+    function processQuantilePositions() {
+      // 체크된 체크박스의 값들을 배열로 수집
+      const checkedBoxes = document.querySelectorAll('#quantile-positions input[type="checkbox"]:checked');
+      const positions = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
+
+      // 체크된 체크박스가 없으면 기본값 설정 (1번 위치)
+      if (positions.length === 0) {
+        positions.push(1);
+      }
+
+      // 이미 폼에 있는 hidden input 삭제
+      const existingHidden = document.querySelectorAll('input[name="quantile_position"][type="hidden"]');
+      existingHidden.forEach(input => input.remove());
+
+      // JSON 형식의 배열로 변환하여 hidden input 추가
+      const hiddenInput = document.createElement('input');
+      hiddenInput.type = 'hidden';
+      hiddenInput.name = 'quantile_position';
+      hiddenInput.value = JSON.stringify(positions);
+      form.appendChild(hiddenInput);
+
+      console.log('Quantile positions:', positions, hiddenInput.value);
+    }
   }
 </script>
 {% endblock %}

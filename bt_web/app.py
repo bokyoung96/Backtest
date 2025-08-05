@@ -235,14 +235,32 @@ def methodology_performance(name):
             sell_commission = float(
                 request.args.get('sell_commission', 0.0002))
             slippage = float(request.args.get('slippage', 0.0001))
-            sell_tax = float(request.args.get('sell_tax', 0.003))
+            sell_tax = float(request.args.get('sell_tax', 0.0015))
             cash_rate = float(request.args.get('cash_rate', 0.02))
+
+        quantile_position_param = request.args.get('quantile_position', '[1]')
+        try:
+            quantile_position = json.loads(quantile_position_param)
+            if not isinstance(quantile_position, list):
+                quantile_position = [1]
+        except (json.JSONDecodeError, TypeError):
+            quantile_position_list = request.args.getlist('quantile_position')
+            if quantile_position_list:
+                try:
+                    quantile_position = [int(pos) for pos in quantile_position_list]
+                except (ValueError, TypeError):
+                    quantile_position = [1]
+            else:
+                if isinstance(quantile_position_param, str) and quantile_position_param.isdigit():
+                    quantile_position = [int(quantile_position_param)]
+                else:
+                    quantile_position = [1]
 
         params = {
             'init_invest': float(request.args.get('initial_investment', 100000000)),
             'mkt': request.args.get('market', 'KOSPI200'),
-            'start_date': request.args.get('start_date', '20200101'),
-            'end_date': request.args.get('end_date', '20250331'),
+            'start_date': request.args.get('start_date', '20150101'),
+            'end_date': request.args.get('end_date', '20250627'),
             'methodology_type': method_type,
             'multiplier': request.args.get('multiplier', 'Y'),
             'buy_commission': buy_commission,
@@ -250,12 +268,22 @@ def methodology_performance(name):
             'slippage': slippage,
             'sell_tax': sell_tax,
             'cash_rate': cash_rate,
-            'rebal_timing': request.args.get('rebal_timing', 'next'),
+            'rebal_timing': request.args.get('rebal_timing', 'same'),
             'freq': request.args.get('freq', 'monthly'),
             'quantile': int(request.args.get('quantile', 5)),
-            'quantile_position': json.loads(request.args.get('quantile_position', '[1]')),
+            'quantile_position': quantile_position,
             'weight_type': request.args.get('weight_type', 'ew')
         }
+        
+        if params['weight_type'] == 'custom':
+            custom_weight_type = request.args.get('custom_weight_type', 'ew')
+            params['weight_type'] = custom_weight_type
+
+        """
+        Parameters for specific methodologies
+        """
+        if name == 'Lifecycle':
+            params['lifecycle_stage'] = request.args.get('lifecycle_stage', 'growth')
 
         try:
             analysis = PortfolioAnalysis.run(**params)
@@ -296,13 +324,16 @@ def methodology_performance(name):
                         bm_mdd = calculate_drawdown_series(
                             analysis.perf_msre.bm_ret)
 
+                        # 첫 해의 데이터도 포함되도록 수정
                         pf_ret_with_first = analysis.perf_msre.pf_ret.copy()
                         bm_ret_with_first = analysis.perf_msre.bm_ret.copy()
 
+                        # 첫 날의 수익률을 0으로 설정하여 시작점 표시
                         first_date = pf_ret_with_first.index[0]
                         pf_ret_with_first.loc[first_date] = 0
                         bm_ret_with_first.loc[first_date] = 0
 
+                        # 수정된 데이터로 누적 수익률 계산
                         pf_cumret = (1 + pf_ret_with_first).cumprod()
                         bm_cumret = (1 + bm_ret_with_first).cumprod()
 
@@ -312,7 +343,9 @@ def methodology_performance(name):
                             'benchmark': bm_cumret.iloc[:, 0],
                             'portfolio_mdd': pf_mdd.iloc[:, 0],
                             'benchmark_mdd': bm_mdd.iloc[:, 0],
+                            # 일간 수익률 추가
                             'portfolio_returns': pf_ret_with_first.iloc[:, 0],
+                            # 일간 수익률 추가
                             'benchmark_returns': bm_ret_with_first.iloc[:, 0]
                         }).reset_index(drop=True)
 

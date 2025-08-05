@@ -66,9 +66,9 @@ class Tools:
             res = const.reindex(prc.index, method='bfill')
         else:
             res = const.reindex(prc.index)
-
+            
         res = res.reindex(columns=prc.columns)
-
+        
         if check_nan and res.isnull().values.any():
             raise ValueError("Unexpected NaN values found after alignment.")
         return res
@@ -77,6 +77,7 @@ class Tools:
     def get_data_freq(df: pd.DataFrame,
                       freq: str) -> pd.DataFrame:
         groupers = {
+            'weekly': [df.index.isocalendar().year, df.index.isocalendar().week],
             'monthly': [df.index.year, df.index.month],
             'quarterly': [df.index.year, (df.index.month - 1) // 3 + 1],
             'semiannual': [df.index.year, (df.index.month - 1) // 6 + 1],
@@ -108,7 +109,7 @@ class Tools:
             # NOTE: When using qcut, the number of quantiles may be less than q if there are duplicate values
             # quantiles = pd.qcut(row, q=q, labels=False, duplicates='drop')
             # return pd.Series(quantiles, index=row.index).add(1)
-
+            
             valid = row.dropna()
             n = len(valid)
             rank = valid.rank(method='min', ascending=True)

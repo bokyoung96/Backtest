@@ -56,10 +56,10 @@ class MethodologyPBFQ1SectorNeutral(Methodology):
 
             # NOTE: PB = Equity NQ1 / Mktcap. Considering 5Q, reverse the order.
             # NOTE: 상사, 자본재 sector will be removed. Can be modified.
-            factor = equity_nfq1.div(mktcap, axis=0)
+            factor = equity_nfq1.div(mktcap, axis=0)            
             factor[wics_sector == '상사,자본재'] = np.nan
             return factor
-
+            
         except ValueError as e:
             raise ValueError(f"Failed to create factor: {e}")
         except Exception as e:
@@ -73,14 +73,14 @@ class MethodologyPBFQ1SectorNeutral(Methodology):
                                     freq=self.freq)
         raw_factor = Tools.get_data_freq(df=self.get_raw_factor(),
                                          freq=self.freq)
-
+        
         aligned_factor = Tools.get_data_align(
             const=raw_factor,
             prc=const,
             check_nan=False,
             fill_method=None
         )
-
+        
         try:
             Tools.validation_df_size(const, aligned_factor)
             return const, aligned_factor
@@ -91,70 +91,67 @@ class MethodologyPBFQ1SectorNeutral(Methodology):
         const, raw_factor = self.get_pp_data()
         factor = const.mul(raw_factor)
         wics_sector = self.data['wics_sector_26'].copy()
-
-        wics_sector = Tools.get_data_freq(df=wics_sector,
-                                          freq=self.freq)
-        wics_sector = Tools.get_data_align(const=wics_sector,
-                                           prc=const,
-                                           check_nan=False,
-                                           fill_method=None)
-
+        
+        wics_sector = Tools.get_data_freq(df=wics_sector, 
+                                           freq=self.freq)
+        wics_sector = Tools.get_data_align(const=wics_sector, 
+                                            prc=const, 
+                                            check_nan=False, 
+                                            fill_method=None)
+        
         z_score = pd.DataFrame(index=factor.index, columns=factor.columns)
-
+        
         for date in factor.index:
             date_factor = factor.loc[date]
             date_sector = wics_sector.loc[date]
-
+            
             valid_mask = ~date_factor.isna() & ~date_sector.isna()
             date_factor = date_factor[valid_mask]
             date_sector = date_sector[valid_mask]
-
+            
             for sector in date_sector.unique():
                 if pd.isna(sector):
                     continue
-
+                    
                 sector_stocks = date_sector[date_sector == sector].index
                 sector_factors = date_factor[sector_stocks]
-
+                
                 if len(sector_factors) <= 2:
                     z_score.loc[date, sector_stocks] = 0
                 else:
                     mean = sector_factors.mean()
                     std = sector_factors.std(ddof=0)
                     if std != 0:
-                        z_score.loc[date, sector_stocks] = (
-                            sector_factors - mean) / std
+                        z_score.loc[date, sector_stocks] = (sector_factors - mean) / std
                     else:
                         z_score.loc[date, sector_stocks] = 0
         return z_score
 
     def get_quantile(self):
         factor = self.get_z_score()
-
-        percentile_ranks = pd.DataFrame(
-            index=factor.index, columns=factor.columns)
-
+        
+        percentile_ranks = pd.DataFrame(index=factor.index, columns=factor.columns)
+        
         for date in factor.index:
             row_data = factor.loc[date]
             valid_data = row_data.dropna()
-
+            
             if not valid_data.empty:
                 values_array = valid_data.values
-
+                
                 for col in valid_data.index:
                     try:
                         value = valid_data[col]
                         if len(values_array) <= 1:
                             percentile_ranks.loc[date, col] = 0.5
                         else:
-                            percentile = stats.percentileofscore(
-                                values_array, value, kind='weak') / 100
+                            percentile = stats.percentileofscore(values_array, value, kind='weak') / 100
                             percentile_ranks.loc[date, col] = percentile
                     except Exception:
                         percentile_ranks.loc[date, col] = np.nan
-
-        quantile = percentile_ranks.apply(lambda row: Tools.get_quantile(row=row,
-                                                                         q=self.quantile),
+        
+        quantile = percentile_ranks.apply(lambda row: Tools.get_quantile(row=row, 
+                                                                         q=self.quantile), 
                                           axis=1)
         return quantile
 
@@ -180,7 +177,8 @@ class MethodologyPBFQ1SectorNeutral(Methodology):
 
 if __name__ == "__main__":
     m = MethodologyPBFQ1SectorNeutral(mkt='KOSPI200',
-                                      start_date='20110101',
-                                      end_date='20250331',
-                                      quantile=5,
-                                      quantile_position=[5])
+                                    start_date='20110101',
+                                    end_date='20250331',
+                                    quantile=5,
+                                    quantile_position=[5])
+

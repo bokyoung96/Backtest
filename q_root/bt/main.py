@@ -1,5 +1,7 @@
 import logging
 import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
 from threading import Lock
 from typing import Dict, Optional
 
@@ -181,6 +183,114 @@ class PortfolioAnalysis:
                 return None
         return None
 
+    def get_holding_period_returns(self) -> Optional[pd.DataFrame]:
+        try:
+            rebalancing_dates = pd.to_datetime(
+                self.portfolio_constructor.date_manager.rebalancing_dates)
+            price_data = self.portfolio_constructor.price
+        except AttributeError:
+            logging.error("Constructor attributes not initialized.")
+            return None
+
+        if rebalancing_dates.empty or price_data is None or price_data.empty:
+            logging.warning("Rebalancing dates or price data unavailable.")
+            return None
+
+        if not self.holdings_snapshot:
+            logging.warning("Holdings snapshot is empty.")
+            return None
+
+        price_data.index = pd.to_datetime(price_data.index)
+        snapshot_dates = sorted(
+            [pd.to_datetime(d) for d in self.holdings_snapshot.keys()])
+
+        records = []
+        for holding_start_date in snapshot_dates:
+            holdings = self.holdings_snapshot[holding_start_date.strftime('%Y%m%d')]
+            if holdings.empty:
+                continue
+
+            next_rebal_idx = rebalancing_dates.searchsorted(
+                holding_start_date, side='right')
+
+            if next_rebal_idx >= len(rebalancing_dates):
+                holding_end_date = pd.to_datetime(self.end_date)
+            else:
+                holding_end_date = rebalancing_dates[next_rebal_idx]
+
+            for ticker in holdings.index:
+                try:
+                    start_price = price_data.loc[price_data.index.asof(
+                        holding_start_date), ticker]
+                    end_price = price_data.loc[price_data.index.asof(
+                        holding_end_date), ticker]
+
+                    if pd.notna(start_price) and pd.notna(end_price) and start_price > 0:
+                        period_return = (end_price / start_price) - 1
+                        records.append({
+                            'rebal_date': holding_start_date.strftime('%Y-%m-%d'),
+                            'ticker': ticker,
+                            'start_price': start_price,
+                            'end_date': holding_end_date.strftime('%Y-%m-%d'),
+                            'end_price': end_price,
+                            'return': period_return
+                        })
+                except (KeyError, IndexError):
+                    continue
+
+        if not records:
+            return pd.DataFrame()
+
+        return pd.DataFrame(records)
+
+    def plot_holding_period_analysis(self, hpr_df: pd.DataFrame) -> None:
+        if hpr_df is None or hpr_df.empty:
+            print("Holding period returns data is not available for plotting.")
+            return
+
+        plt.style.use('seaborn-v0_8-whitegrid')
+        fig, axes = plt.subplots(2, 1, figsize=(15, 12), constrained_layout=True)
+        fig.suptitle('Holding Period Return Analysis', fontsize=16)
+
+        axes[0].hist(hpr_df['return'], bins=50, alpha=0.7, color='skyblue', edgecolor='black')
+        axes[0].set_title('Distribution of Monthly Holding Returns')
+        axes[0].set_xlabel('Return')
+        axes[0].set_ylabel('Frequency')
+        axes[0].axvline(hpr_df['return'].mean(), color='red', linestyle='--', linewidth=2, label=f"Mean: {hpr_df['return'].mean():.2%}")
+        axes[0].legend()
+
+        top_3 = hpr_df.nlargest(3, 'return')
+        bottom_3 = hpr_df.nsmallest(3, 'return')
+        extreme_performers = pd.concat([top_3, bottom_3])
+
+        price_data = self.portfolio_constructor.price
+        price_data.index = pd.to_datetime(price_data.index)
+
+        axes[1].set_title(
+            'Cumulative Returns of Top/Bottom 3 Holdings')
+
+        for _, row in extreme_performers.iterrows():
+            start_date = pd.to_datetime(row['rebal_date'])
+            end_date = pd.to_datetime(row['end_date'])
+            ticker = row['ticker']
+
+            period_prices = price_data.loc[start_date:end_date, ticker].dropna()
+            if period_prices.empty or len(period_prices) < 2:
+                continue
+
+            cumulative_returns = (period_prices / period_prices.iloc[0])
+            days_from_start = range(len(cumulative_returns))
+
+            label = f"{ticker} ({start_date.strftime('%Y-%m-%d')}, Ret: {row['return']:.2%})"
+            axes[1].plot(days_from_start, cumulative_returns.values,
+                         label=label, linestyle='--', alpha=0.7)
+
+        axes[1].axhline(1.0, color='black', linestyle='-', linewidth=1)
+        axes[1].set_ylabel('Cumulative Return (Normalized to 1.0 at Start)')
+        axes[1].set_xlabel('Trading Days from Investment Start')
+        axes[1].legend(loc='best', fontsize='small')
+        plt.show()
+
 
 class AnalysisManager:
     def __init__(self, config: Dict, methodology_types: list) -> None:
@@ -205,3 +315,39 @@ class AnalysisManager:
         return "Available Methodologies:\n" + "\n".join(
             str(method) for method in self.methodology_types
         )
+
+
+if __name__ == "__main__":
+    common_params = {
+        'init_invest': 1000000,
+        'mkt': 'KOSPI200',
+        'start_date': '20200101',
+        'end_date': '20250627',
+        'methodology_type': MethodologyType.MethodologyPriceTrendsAbs,
+        'multiplier': 'Y',
+        'buy_commission': 0.02/100,
+        'sell_commission': 0.02/100,
+        'slippage': 0.01/100,
+        'sell_tax': 0.15/100,
+        'cash_rate': 0.02,
+        'rebal_timing': 'same',
+        'weight_type': 'ew'
+    }
+
+    analysis1 = PortfolioAnalysis.run(
+        file_name='price_trends_avg_test_20.parquet',
+        score_threshold=0.35,
+        inverse_threshold=True,
+        keep_empty_periods=True,
+        freq='monthly',
+        **common_params
+    )
+
+    hpr_df = analysis1.get_holding_period_returns()
+    if hpr_df is not None and not hpr_df.empty:
+        print("\n--- Holding Period Returns ---")
+        with pd.option_context('display.max_rows', None, 'display.width', 1000):
+            print(hpr_df)
+    
+    analysis1.plot_holding_period_analysis(hpr_df)
+

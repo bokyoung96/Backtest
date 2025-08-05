@@ -288,6 +288,7 @@
             <option value="KOSPI200" selected>KOSPI200</option>
             <option value="KOSPI">KOSPI</option>
             <option value="KOSDAQ">KOSDAQ</option>
+            <option value="ALL">ALL</option>
           </select>
         </div>
       </div>
@@ -300,7 +301,7 @@
             class="form-control"
             id="start_date"
             name="start_date"
-            value="2020-01-01"
+            value="2015-01-01"
           />
         </div>
         <div class="col-md-6">
@@ -310,7 +311,7 @@
             class="form-control"
             id="end_date"
             name="end_date"
-            value="2025-03-31"
+            value="2025-06-27"
           />
         </div>
       </div>
@@ -416,7 +417,7 @@
             class="form-control transaction-cost-field"
             id="sell_tax"
             name="sell_tax"
-            value="0.003"
+            value="0.0015"
             step="0.0001"
             min="0"
           />
@@ -454,9 +455,24 @@
           <label for="weight_type" class="form-label">Weighting Method</label>
           <select class="form-select" id="weight_type" name="weight_type">
             <option value="ew" selected>Equal Weight (EW)</option>
-            <option value="mcap">Market Cap Weight</option>
+            <option value="mktcap_float">Market Cap Weight</option>
             <option value="custom">Custom Weight</option>
           </select>
+        </div>
+      </div>
+
+      <!-- Custom Weight Type Input (hidden by default) -->
+      <div class="row param-row" id="custom-weight-row" style="display: none;">
+        <div class="col-md-4">
+          <label for="custom_weight_type" class="form-label">Custom Weight Type</label>
+          <input
+            type="text"
+            class="form-control"
+            id="custom_weight_type"
+            name="custom_weight_type"
+            placeholder="e.g. score, ew, mktcap_float"
+          />
+          <small class="form-text text-muted">Available: ew, mktcap_float, score (methodology dependent)</small>
         </div>
       </div>
 
@@ -486,8 +502,8 @@
             >Rebalancing Timing</label
           >
           <select class="form-select" id="rebal_timing" name="rebal_timing">
-            <option value="next" selected>Next Day (next)</option>
-            <option value="same">Same Day (same)</option>
+            <option value="next">Next Day (next)</option>
+            <option value="same" selected>Same Day (same)</option>
           </select>
         </div>
       </div>
@@ -580,7 +596,15 @@
       url += `&rebal_timing=${rebalTiming}`;
       url += `&quantile=${quantile}`;
       url += `&quantile_position=${quantilePosition}`;
-      url += `&weight_type=${weightType}`;
+      
+      // Handle custom weight type
+      if (weightType === 'custom') {
+        const customWeightType = formData.get("custom_weight_type");
+        url += `&weight_type=${customWeightType || 'ew'}`;
+      } else {
+        url += `&weight_type=${weightType}`;
+      }
+      
       url += `&freq=${freq}`;
 
       try {
@@ -602,6 +626,18 @@
     if (loadingOverlay) {
       loadingOverlay.style.display = "none";
     }
+
+    // Handle weight type change to show/hide custom weight input
+    const weightTypeSelect = document.getElementById("weight_type");
+    const customWeightRow = document.getElementById("custom-weight-row");
+    
+    weightTypeSelect.addEventListener("change", function() {
+      if (this.value === "custom") {
+        customWeightRow.style.display = "block";
+      } else {
+        customWeightRow.style.display = "none";
+      }
+    });
 
     // Transaction cost type presets
     const costPresets = {

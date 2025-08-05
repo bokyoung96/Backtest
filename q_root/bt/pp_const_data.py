@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 from bt.loader import DirMkt
 
 
@@ -7,7 +8,8 @@ CONST = "data_const_%s"
 
 class KorConstHelper:
     def __init__(self,
-                 mkt: str = 'KOSPI200'):
+                 mkt: str = 'KOSPI200',
+                 data_dir: str = None):
         try:
             self.data_verifier(mkt=mkt)
         except ValueError as error:
@@ -15,6 +17,7 @@ class KorConstHelper:
 
         self.mkt_value = getattr(DirMkt, mkt).name
         self.file_name = f"{CONST % self.mkt_value}"
+        self.data_dir = data_dir if data_dir else os.path.join(os.path.dirname(__file__), 'DATA')
 
     @staticmethod
     def data_verifier(mkt):
@@ -28,7 +31,8 @@ class KorConstHelper:
         return f"mkt_value: {self.mkt_value}"
 
     def get_DG_raw_data(self) -> pd.DataFrame:
-        data = pd.read_excel(f"./DATA/{self.file_name}.xlsx", header=6)
+        file_path = os.path.join(self.data_dir, f"{self.file_name}.xlsx")
+        data = pd.read_excel(file_path, header=6)
         data.columns = ['Date', 'Code', 'Name']
         return data
 
@@ -43,9 +47,10 @@ class KorConstHelper:
         res = data.notna().astype(int)
         res.index = pd.to_datetime(res.index)
         return res
-
+    
     def save_data(self):
-        return self.get_DG_res_data().to_parquet(f'./DATA/{self.file_name}.parquet')
+        output_path = os.path.join(self.data_dir, f"{self.file_name}.parquet")
+        return self.get_DG_res_data().to_parquet(output_path)
 
 
 def update_all():
@@ -77,7 +82,8 @@ def update_all():
 
 if __name__ == "__main__":
     # Individual market update
-    # kor_const = KorConstHelper(mkt='KOSPI200')
+    kor_const = KorConstHelper(mkt='KOSPI200')
+    kor_const.save_data()
     
     # Update all constituents
-    update_all()
+    # update_all()

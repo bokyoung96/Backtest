@@ -4,11 +4,23 @@
     "long_description": "This strategy examines the historical price data to identify and filter out extreme values, missing data points, and other anomalies that might adversely affect backtest results. It's primarily used for data quality assurance rather than investment decision making."
   },
   "ERRChg": {
-    "short_description": "Earnings Revision Ratio Change strategy based on analyst estimate revisions.",
+    "short_description": "Earnings Revision Ratio Change strategy based on analyst estimate revisions. (AVG)",
     "long_description": "The ERRChg strategy tracks changes in analyst earnings revisions over time. It identifies stocks where more analysts are increasing their earnings estimates than decreasing them, which may indicate improving company fundamentals. This strategy tends to perform well in markets that reward fundamentally improving companies."
   },
   "OPRChg": {
-    "short_description": "Operating Profit Estimates Change strategy focused on operating profit trends.",
-    "long_description": "This strategy focuses on changes in analyst projections for operating profits. It identifies companies where analysts are increasingly optimistic about future operating profits, which often signals improving business operations and potential future stock price appreciation."
+    "short_description": "Operating Profit Estimates Change strategy focused on operating profit trends. (NFQ1)",
+    "long_description": "This strategy focuses on changes in analyst projections for operating profits. It calculates changes by dividing current estimates by the absolute value of previous estimates minus 1. This approach prevents issues with negative denominators while capturing the directional changes in operating profit forecasts."
+  },
+  "EPSChg": {
+    "short_description": "Earnings Per Share Estimates Change strategy based on analyst estimates. (NFQ1)",
+    "long_description": "The EPSChg strategy tracks changes in analyst earnings per share estimates over time. It calculates changes by dividing current estimates by the absolute value of previous estimates minus 1. This approach prevents issues with negative denominators while capturing the directional changes in EPS forecasts."
+  },
+  "DonchianChannel": {
+    "short_description": "Multi-period Donchian Channel trend following strategy with volatility targeting.",
+    "long_description": "The Donchian Channel strategy is a trend-following approach that uses multiple lookback periods (5 to 360 days) to capture market trends. It generates buy signals when price breaks above the upper Donchian channel and uses trailing stops based on the channel midpoint for exits. The strategy combines signals from different timeframes into an ensemble and adjusts position sizes based on volatility targeting to maintain consistent risk levels. Positions are only adjusted when changes exceed a rebalancing threshold to minimize turnover."
+  },
+  "EPSChgFY1": {
+    "short_description": "Earnings Per Share Estimates Change strategy based on analyst estimates. (NFY1)",
+    "long_description": "The EPSChgFY1 strategy tracks changes in analyst earnings per share estimates over time. It calculates changes by dividing current estimates by the absolute value of previous estimates minus 1. This approach prevents issues with negative denominators while capturing the directional changes in EPS forecasts."
   }
 }

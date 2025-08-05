@@ -50,39 +50,38 @@ class MethodologyEPSChgFY2VolAdj(Methodology):
     def get_raw_factor(self):
         try:
             eps_nfy2_e = self.data['eps_nfy2_e'].copy()
-
+            
             eps_nfy2_e = eps_nfy2_e.replace([None], np.nan)
-
-            orig_idx = eps_nfy2_e.index.copy()
+            
+            orig_idx = eps_nfy2_e.index.copy()            
             m_periods = pd.PeriodIndex(orig_idx, freq='M')
-
+            
             m_data = {}
             for month in set(m_periods):
                 m_dates = orig_idx[m_periods == month]
                 last_date = m_dates[-1]
                 m_data[month] = eps_nfy2_e.loc[last_date].copy()
-
+            
             month_ends = pd.Series(m_data).sort_index()
-            month_end_df = pd.DataFrame(
-                month_ends.values.tolist(), index=month_ends.index)
-
+            month_end_df = pd.DataFrame(month_ends.values.tolist(), index=month_ends.index)
+            
             month_end_df = month_end_df.replace([None], np.nan)
-
+            
             pct_change_df = (month_end_df / month_end_df.shift(1).abs() - 1)
-
+            
             m_factor = pd.DataFrame(index=orig_idx, columns=eps_nfy2_e.columns)
             for date, period in zip(orig_idx, m_periods):
                 if period in pct_change_df.index:
                     m_factor.loc[date] = pct_change_df.loc[period]
             return m_factor
-
+            
         except ValueError as e:
             raise ValueError(f"Failed to create factor: {e}")
         except Exception as e:
             import traceback
             traceback.print_exc()
             raise ValueError(f"Error in get_raw_factor: {e}")
-
+    
     def get_pp_data(self):
         const = Tools.get_data_freq(df=Tools.get_nan(df=self.const,
                                                      val=[0]),
@@ -91,21 +90,21 @@ class MethodologyEPSChgFY2VolAdj(Methodology):
                                          freq=self.freq)
         vol_factor = Tools.get_data_freq(df=self.get_vol_adj(),
                                          freq=self.freq)
-
+        
         aligned_factor = Tools.get_data_align(
             const=raw_factor,
             prc=const,
             check_nan=False,
             fill_method=None
         )
-
+        
         aligned_vol_factor = Tools.get_data_align(
             const=vol_factor,
             prc=const,
             check_nan=False,
             fill_method=None
         )
-
+        
         try:
             Tools.validation_df_size(const, aligned_factor)
             Tools.validation_df_size(const, aligned_vol_factor)
@@ -113,28 +112,27 @@ class MethodologyEPSChgFY2VolAdj(Methodology):
             return const, res
         except ValueError as e:
             raise ValueError(f"Failed to match frequency: {e}")
-
+        
     def get_vol_adj(self):
         eps_nfy0 = self.data['eps_nfy0'].copy()
-
+        
         annual_eps = eps_nfy0.groupby(eps_nfy0.index.year).last()
         annual_changes = annual_eps / annual_eps.shift(1).abs() - 1
-
-        changes_array = np.stack(
-            [annual_changes.shift(i).values for i in range(3)], axis=-1)
-
+        
+        changes_array = np.stack([annual_changes.shift(i).values for i in range(3)], axis=-1)
+        
         vol = pd.DataFrame(
             np.maximum(np.nanstd(changes_array, axis=-1), 1),
             index=annual_eps.index,
             columns=eps_nfy0.columns
         )
-
+        
         vol_adj = pd.DataFrame(index=eps_nfy0.index, columns=eps_nfy0.columns)
         for idx in eps_nfy0.index:
             year = idx.year
             month = idx.month
             day = idx.day
-
+            
             if (month > 4) or (month == 4 and day >= 1):
                 if (year - 1) in vol.index:
                     vol_adj.loc[idx] = vol.loc[year - 1].values
@@ -142,37 +140,35 @@ class MethodologyEPSChgFY2VolAdj(Methodology):
             else:
                 if (year - 2) in vol.index:
                     vol_adj.loc[idx] = vol.loc[year - 2].values
-
+        
         return vol_adj
-
+    
     def get_quantile(self):
         const, raw_factor = self.get_pp_data()
         factor = const.mul(raw_factor)
-
-        percentile_ranks = pd.DataFrame(
-            index=factor.index, columns=factor.columns)
-
+        
+        percentile_ranks = pd.DataFrame(index=factor.index, columns=factor.columns)
+        
         for date in factor.index:
             row_data = factor.loc[date]
             valid_data = row_data.dropna()
-
+            
             if not valid_data.empty:
                 values_array = valid_data.values
-
+                
                 for col in valid_data.index:
                     try:
                         value = valid_data[col]
                         if len(values_array) <= 1:
                             percentile_ranks.loc[date, col] = 0.5
                         else:
-                            percentile = stats.percentileofscore(
-                                values_array, value, kind='weak') / 100
+                            percentile = stats.percentileofscore(values_array, value, kind='weak') / 100
                             percentile_ranks.loc[date, col] = percentile
                     except Exception:
                         percentile_ranks.loc[date, col] = np.nan
-
-        quantile = percentile_ranks.apply(lambda row: Tools.get_quantile(row=row,
-                                                                         q=self.quantile),
+        
+        quantile = percentile_ranks.apply(lambda row: Tools.get_quantile(row=row, 
+                                                                         q=self.quantile), 
                                           axis=1)
         return quantile
 
@@ -202,3 +198,4 @@ if __name__ == "__main__":
                                    end_date='20250101',
                                    quantile=5,
                                    quantile_position=[5])
+

@@ -52,6 +52,9 @@ class ISItem(Enum):
 class CFItem(Enum):
     fcf_ttm_lfq0 = "fcf_ttm_lfq0"
     dividends_ttm_lfq0 = "dividends_ttm_lfq0"
+    ocf_nrfq1 = "ocf_nrfq1"
+    facf_nrfq1 = "facf_nrfq1"
+    icf_nrfq1 = "icf_nrfq1"
 
     def as_cf(self):
         return CF % self.value
@@ -65,7 +68,7 @@ class FNItem(Enum):
     eps_nfy1_e = "eps_nfy1_e"
     eps_nfy2_e = "eps_nfy2_e"
     eps_nfy0 = "eps_nfy0"
-
+    
     def as_fn(self):
         return FN % self.value
 
@@ -107,6 +110,9 @@ class DataPool(Enum):
     # NOTE: CF Items
     data_cf_fcf_ttm_lfq0 = CFItem.fcf_ttm_lfq0.as_cf()
     data_dividends_ttm_lfq0 = CFItem.dividends_ttm_lfq0.as_cf()
+    data_ocf_nrfq1 = CFItem.ocf_nrfq1.as_cf()
+    data_facf_nrfq1 = CFItem.facf_nrfq1.as_cf()
+    data_icf_nrfq1 = CFItem.icf_nrfq1.as_cf()
 
     # NOTE: Financial Items
     data_fn_pbr_ttm_lfq0 = FNItem.pbr_ttm_lfq0.as_fn()
@@ -115,7 +121,7 @@ class DataPool(Enum):
     data_fn_eps_nfy1_e = FNItem.eps_nfy1_e.as_fn()
     data_fn_eps_nfy2_e = FNItem.eps_nfy2_e.as_fn()
     data_fn_eps_nfy0 = FNItem.eps_nfy0.as_fn()
-
+    
     # NOTE: Base Items
     data_base_bm = BaseItem.bm.as_base()
     data_base_price_adj = BaseItem.price_adj.as_base()
@@ -128,7 +134,6 @@ class DataPool(Enum):
     data_base_wics_sector_big = BaseItem.wics_sector_big.as_base()
     data_base_donchian_ohlc = BaseItem.donchian_ohlc.as_base()
     data_base_wics_sector_26 = BaseItem.wics_sector_26.as_base()
-
 
 class DataLoader:
     def __init__(self,
@@ -163,22 +168,21 @@ class DataLoader:
             if data_name == member.value:
                 res = member_name
                 break
-
+        
         if res is None:
             for member_name, member in DataPool.__members__.items():
                 short_name = member.value.split('_', 2)[-1]
                 if data_name == short_name:
                     res = member_name
                     break
-
+        
         if res is None:
             available_data = []
             for member in DataPool.__members__.values():
                 full_name = member.value
                 short_name = full_name.split('_', 2)[-1]
                 available_data.append(f"{short_name} (full: {full_name})")
-            raise ValueError(
-                f"Data name '{data_name}' not found. Available data names are: {available_data}")
+            raise ValueError(f"Data name '{data_name}' not found. Available data names are: {available_data}")
 
         data_path = os.path.join(
             self.data_dir, f'{DataPool[res].value}.parquet')

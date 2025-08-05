@@ -133,8 +133,12 @@ class PortfolioPerformance(PerformanceMeasure):
         pf_ret = self.pf_ret.copy()[1:]
         bm_ret = self.bm_ret.copy()[1:]
 
-        pf_hit = len(pf_ret[pf_ret >= 0].dropna()) / len(pf_ret)
-        bm_hit = len(bm_ret[bm_ret >= 0].dropna()) / len(bm_ret)
+        # NOTE: ASSUME 0 AS NOT INVESTED, CASH-IN POSITION
+        pf_invested = pf_ret[pf_ret != 0].dropna()
+        bm_invested = bm_ret[bm_ret != 0].dropna()
+
+        pf_hit = (pf_invested > 0).sum().iloc[0] / len(pf_invested) if len(pf_invested) > 0 else 0
+        bm_hit = (bm_invested > 0).sum().iloc[0] / len(bm_invested) if len(bm_invested) > 0 else 0
         return [pf_hit, bm_hit]
 
     @property

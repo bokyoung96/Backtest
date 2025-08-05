@@ -574,13 +574,12 @@ class PortfolioBacktester:
             banned_stocks = []
             if not current_quantity.empty and rebalancing_date in self.trans_ban.index:
                 banned_stocks = self.trans_ban.loc[rebalancing_date][self.trans_ban.loc[rebalancing_date] > 0].index
-                banned_holdings = current_quantity.index.intersection(
-                    banned_stocks)
-
+                banned_holdings = current_quantity.index.intersection(banned_stocks)
+                
                 if not banned_holdings.empty:
                     for stock in banned_holdings:
                         ideal_target_quantity[stock] = current_quantity[stock]
-
+                    
                     logging.warning(
                         f"[Backtester] {rebalancing_date.strftime('%Y%m%d')}: Found {len(banned_holdings)} banned stocks in current holdings. Maintaining current positions for: {banned_holdings.tolist()}")
 
@@ -680,7 +679,7 @@ class PortfolioBacktester:
             # NOTE: Assume long-only, non-leveraged portfolio, so cash balance cannot be negative
             # If cash balance is negative due to floating point errors, clamp to 0.0
             if cash_balance < 0:
-                if abs(cash_balance) > 1.0:
+                if abs(cash_balance) > 1.0: 
                     logging.error(
                         f"[Backtester] {rebalancing_date.strftime('%Y%m%d')}: Significant negative cash balance detected ({cash_balance:,.2f}) after trades! Check scaling logic or costs.")
                     logging.warning(
@@ -828,7 +827,7 @@ class PortfolioBacktester:
     @property
     def portfolio_returns(self) -> pd.DataFrame:
         """Calculates and returns the daily percentage returns of the total portfolio NAV."""
-        results_df = self.results
+        results_df = self.results 
         if results_df is None or results_df.empty or 'Total' not in results_df.columns:
             logging.warning(
                 "[Backtester] Cannot calculate portfolio returns: Results DataFrame is missing, empty, or lacks 'Total' column.")
