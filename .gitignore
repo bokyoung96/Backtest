@@ -3,17 +3,8 @@
 settings.json
 
 # Ignore results
-price_trends_60d.parquet
-
-price_trends_avg_prod_5.parquet
-price_trends_avg_prod_20.parquet
-price_trends_avg_prod_60.parquet
-price_trends_avg_prod.parquet
-
-price_trends_avg_test_5.parquet
-price_trends_avg_test_20.parquet
-price_trends_avg_test_60.parquet
-price_trends_avg_test_avg.parquet
+price_trends
+emp008
 
 # Infos: Contact BKChoi
 contact.html
