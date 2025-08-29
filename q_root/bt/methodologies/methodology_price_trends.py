@@ -48,7 +48,7 @@ class MethodologyPriceTrends(Methodology):
 
     def get_raw_factor(self):
         try:
-            file_path = Path(__file__).parent / self.factor_filename
+            file_path = Path(__file__).parent / 'price_trends' / self.factor_filename
             
             raw_factor = pd.read_parquet(file_path)
             orig_idx = self.data['price_adj'].index
